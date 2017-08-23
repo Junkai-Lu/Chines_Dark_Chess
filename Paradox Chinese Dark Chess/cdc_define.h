@@ -78,6 +78,9 @@ namespace chinese_dark_chess
 	//basic data struct of game state.
 	class State;
 
+	//move board for all locs.
+	extern BitBoard g_MOVE_BOARD[32];
+
 	//location.
 	struct Location
 	{
@@ -189,16 +192,17 @@ namespace chinese_dark_chess
 		const PieceType	capture_index;	//the index of captured index, no capture if the value is 0.
 		const BitBoard	capture_board;	//the new board for captured piece rank.
 
-#ifdef CDC_DEBUG_INFO
-		ActionData debug_data;			//debug data.
-#endif
+		Action(PieceType _move_index, BitBoard _move_board, PieceType _cap_index, BitBoard _cap_board):
+			move_index(_move_index),
+			move_board(_move_board),
+			capture_index(_cap_index),
+			capture_board(_cap_board)
+		{
+		}
 
 		//get action type
 		ActionType type() const
 		{
-#ifdef CDC_DEBUG_INFO
-			return debug_data.type;
-#else
 			if (move_index != 0)
 			{
 				if (move_index == capture_index)
@@ -212,59 +216,10 @@ namespace chinese_dark_chess
 				return FLIPPED_RESULT_ACTION;
 			}
 			return FLIPPING_ACTION;
-#endif
 		}
 
-		ActionData data(const State& s) const
-		{
-#ifdef CDC_DEBUG_INFO
-			return debug_data;
-#else
-			auto GetIndex = [](const BitBoard& board)->size_t {
-				for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
-				{
-					if (board[i]) 
-					{ 
-						return i; 
-					}
-				}
-				return g_CDC_MAX_LENGTH;
-			};
-			auto action_type = type();
-			if (action_type == MOVE_ACTION)
-			{
-				//from A to B
-				BitBoard a_and_b = move_board ^ s.piece_board(move_index);
-				BitBoard a = a_and_b & s.piece_board(move_index);//source
-				BitBoard b = a_and_b & move_board;//destination
-				size_t source = GetIndex(a);
-				size_t destination = GetIndex(b);
-				return ActionData(MOVE_ACTION, Location(source), Location(destination), move_index);
-			}
-			if (action_type == CAPTURE_ACTION)
-			{
-				//from A to B
-				BitBoard a_and_b = move_board ^ s.piece_board(move_index);
-				BitBoard b = (~capture_board) & s.piece_board(capture_index);
-				BitBoard a = a_and_b ^ b;
-				size_t source = GetIndex(a);
-				size_t destination = GetIndex(b);
-				return ActionData(CAPTURE_ACTION, Location(source), Location(destination), move_index);
-			}
-			if (action_type == FLIPPING_ACTION)
-			{
-				//from A
-				BitBoard a = move_board ^ s.piece_board(move_index);
-				size_t source = GetIndex(a);
-				return ActionData(FLIPPING_ACTION, Location(source), Location(source), move_index);
-			}
-			
-			//flipped result action
-			BitBoard a = move_board ^ s.piece_board(move_index);
-			size_t source = GetIndex(a);
-			return ActionData(FLIPPED_RESULT_ACTION, Location(source), Location(source), capture_index);
-#endif
-		}
+		//get data 
+		ActionData data(const State& s) const;
 	};
 
 	//action set
@@ -347,7 +302,7 @@ namespace chinese_dark_chess
 			_pieces[action.move_index] = action.capture_board;
 
 #ifdef CDC_DEBUG_INFO
-			_debug_data.to_next(action.debug_data);
+			_debug_data.to_next(action.data(*this));
 #endif
 		}
 
@@ -380,6 +335,21 @@ namespace chinese_dark_chess
 				_pieces[14].none();
 			if (no_black) { return RESULT_RED_WIN; }
 			return RESULT_DRAW;
+		}
+
+		BitBoard get_piece_board() const
+		{
+			BitBoard board = _pieces[0];
+			for (size_t i = 1; i < 15; i++)
+			{
+				board |= _pieces[i];
+			}
+			return board;
+		}
+
+		BitBoard get_empty_piece_board() const
+		{
+			return (get_piece_board().operator~()) & BitBoard(0x0000FFFF);
 		}
 
 		//get state data.

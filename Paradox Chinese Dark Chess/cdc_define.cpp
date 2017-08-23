@@ -29,6 +29,89 @@ namespace chinese_dark_chess
 		}
 	}
 
+	BitBoard g_MOVE_BOARD[32] = {
+		BitBoard(258),
+		BitBoard(517),
+		BitBoard(1034),
+		BitBoard(2068),
+		BitBoard(4136),
+		BitBoard(8272),
+		BitBoard(16544),
+		BitBoard(32832),
+		BitBoard(66049),
+		BitBoard(132354),
+		BitBoard(264708),
+		BitBoard(529416),
+		BitBoard(1058832),
+		BitBoard(2117664),
+		BitBoard(4235328),
+		BitBoard(8405120),
+		BitBoard(16908544),
+		BitBoard(33882624),
+		BitBoard(67765248),
+		BitBoard(135530496),
+		BitBoard(271060992),
+		BitBoard(542121984),
+		BitBoard(1084243968),
+		BitBoard(2151710720),
+		BitBoard(33619968),
+		BitBoard(84017152),
+		BitBoard(168034304),
+		BitBoard(336068608),
+		BitBoard(672137216),
+		BitBoard(1344274432),
+		BitBoard(2688548864),
+		BitBoard(1082130432)
+	};
+
+
+	ActionData Action::data(const State & s) const
+	{
+		auto GetIndex = [](const BitBoard& board)->size_t {
+			for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
+			{
+				if (board[i])
+				{
+					return i;
+				}
+			}
+			return g_CDC_MAX_LENGTH;
+		};
+		auto action_type = type();
+		if (action_type == MOVE_ACTION)
+		{
+			//from A to B
+			BitBoard a_and_b = move_board ^ s.piece_board(move_index);
+			BitBoard a = a_and_b & s.piece_board(move_index);//source
+			BitBoard b = a_and_b & move_board;//destination
+			size_t source = GetIndex(a);
+			size_t destination = GetIndex(b);
+			return ActionData(MOVE_ACTION, Location(source), Location(destination), move_index);
+		}
+		if (action_type == CAPTURE_ACTION)
+		{
+			//from A to B
+			BitBoard a_and_b = move_board ^ s.piece_board(move_index);
+			BitBoard b = (~capture_board) & s.piece_board(capture_index);
+			BitBoard a = a_and_b ^ b;
+			size_t source = GetIndex(a);
+			size_t destination = GetIndex(b);
+			return ActionData(CAPTURE_ACTION, Location(source), Location(destination), move_index);
+		}
+		if (action_type == FLIPPING_ACTION)
+		{
+			//from A
+			BitBoard a = move_board ^ s.piece_board(move_index);
+			size_t source = GetIndex(a);
+			return ActionData(FLIPPING_ACTION, Location(source), Location(source), move_index);
+		}
+
+		//flipped result action
+		BitBoard a = move_board ^ s.piece_board(move_index);
+		size_t source = GetIndex(a);
+		return ActionData(FLIPPED_RESULT_ACTION, Location(source), Location(source), capture_index);
+	}
+
 	namespace print
 	{
 		void PrintPiece(PieceType p)
