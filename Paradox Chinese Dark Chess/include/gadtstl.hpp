@@ -1,13 +1,163 @@
 #include "gadtlib.h"
+#include "visual_tree.h"
 
 #pragma once
 
 namespace gadt
 {
+	namespace log
+	{
+		/*
+		* SearchLogController is an template of log controller that is used for search logs.
+		*
+		* [State] is the game state type.
+		* [Action] is the game action type.
+		* [Result] is the game result type and could be ignore if it is unnecessary.
+		*/
+		template<typename State, typename Action, typename Result = int>
+		class SearchLogController
+		{
+		private:
+			using VisualTree = visual_tree::VisualTree;
+
+		public:
+			using StateToStrFunc = std::function<std::string(const State& state)>;
+			using ActionToStrFunc = std::function<std::string(const Action& action)>;
+			using ResultToStrFunc = std::function<std::string(const Result& result)>;
+
+		private:
+			//convert functions
+			bool			_initialized;
+			StateToStrFunc	_state_to_str_func;
+			ActionToStrFunc	_action_to_str_func;
+			ResultToStrFunc	_result_to_str_func;
+
+			//log control
+			bool			_enable_log;
+			std::ostream*	_log_ostream;
+
+			//json output control
+			bool			_enable_json_output;
+			std::string		_json_output_path;
+			VisualTree		_visual_tree;
+
+		public:
+			//default constructor.
+			SearchLogController() :
+				_initialized(false),
+				_state_to_str_func([](const State&)->std::string {return ""; }),
+				_action_to_str_func([](const Action&)->std::string {return ""; }),
+				_enable_log(false),
+				_log_ostream(&std::cout),
+				_enable_json_output(false),
+				_json_output_path(),
+				_visual_tree()
+			{
+			}
+
+			//initialized constructor.
+			SearchLogController(
+				StateToStrFunc state_to_str_func, 
+				ActionToStrFunc action_to_str_func,
+				ResultToStrFunc result_to_str_func = [](const Result&)->std::string {return ""; }
+			) :
+				_initialized(true),
+				_state_to_str_func(state_to_str_func),
+				_action_to_str_func(action_to_str_func),
+				_result_to_str_func(result_to_str_func),
+				_enable_log(false),
+				_log_ostream(std::cout),
+				_enable_json_output(false),
+				_json_output_path(),
+				_visual_tree()
+			{
+			}
+
+			//return true if log enabled.
+			inline bool log_enabled() const { return _enable_log; }
+
+			//return true if json output enabled
+			inline bool json_output_enabled() const { return _enable_json_output; };
+
+			inline std::ostream& output_stream() const
+			{
+				return *_log_ostream;
+			}
+
+			//convert state to string
+			inline std::string StateToStr(const State& state) const
+			{
+				return _state_to_str_func(state);
+			}
+
+			//convert action to string
+			inline std::string ActionToStr(const Action& action) const
+			{
+				return _action_to_str_func(action);
+			}
+
+			//convert action to string
+			inline std::string ResultToStr(const Result& result) const
+			{
+				return _result_to_str_func(result);
+			}
+
+			void Init(
+				StateToStrFunc state_to_str_func,
+				ActionToStrFunc action_to_str_func,
+				ResultToStrFunc result_to_str_func = [](const Result&)->std::string {return ""; }
+			)
+			{
+				_initialized = true;
+				_state_to_str_func = state_to_str_func;
+				_action_to_str_func = action_to_str_func;
+				_result_to_str_func = result_to_str_func;
+			}
+
+			//enable log.
+			inline void EnableLog(std::ostream& os)
+			{
+				_enable_log = true;
+				_log_ostream = os;
+			}
+
+			//disable log.
+			inline void DisableLog()
+			{
+				_enable_log = false;
+			}
+
+			//enable json output
+			inline void EnableJsonOutput(std::string json_output_path)
+			{
+				_enable_json_output = true;
+				_json_output_path = json_output_path;
+			}
+
+			//disable json output.
+			inline void DisableJsonOutput()
+			{
+				_enable_json_output = false;
+			}
+
+			//get json output path
+			inline std::string json_output_path() const
+			{
+				return _json_output_path;
+			}
+
+			//get ref of visual tree.
+			inline VisualTree& visual_tree()
+			{
+				return _visual_tree;
+			}
+		};
+	}
+
 	namespace stl
 	{
 		/*
-		* GadtAllocator is a memory allocator, whose memory is preallocate at the time when the object is created.
+		* Allocator is a memory allocator, whose memory is preallocate at the time when the object is created.
 		*
 		* [T] is the class type.
 		* [size] is the max size of the allocator.
@@ -215,6 +365,12 @@ namespace gadt
 			}
 		};
 
+		/*
+		* ListNode is the basic unit of gadt::stl::List.
+		*
+		* [T] is the class type of the link list.
+		* [is_debug] means some debug info would not be ignored if it is true. this may result in a little degradation of performance.
+		*/
 		template<typename T, bool _is_debug = false>
 		class ListNode
 		{
@@ -241,12 +397,19 @@ namespace gadt
 			inline void set_next_node(pointer p) { _next_node = p; }
 		};
 
+		/*
+		* List is a template of link list.
+		*
+		* [T] is the class type of the link list.
+		* [is_debug] means some debug info would not be ignored if it is true. this may result in a little degradation of performance.
+		*/
 		template<typename T, bool _is_debug = false>
 		class List
 		{
 		public:
-			using Allocator = gadt::stl::Allocator<gadt::stl::ListNode<T, _is_debug>, _is_debug>;
-			using node_pointer = gadt::stl::ListNode<T, _is_debug>*;
+			using Node = ListNode<T, _is_debug>;
+			using Allocator = gadt::stl::Allocator<Node, _is_debug>;
+			using node_pointer = Node*;
 
 		private:
 			const bool   _private_allocator;
@@ -254,6 +417,7 @@ namespace gadt
 			node_pointer _first_node;
 			node_pointer _last_node;
 			node_pointer _iterator;
+			size_t       _size;
 
 		public:
 			List(size_t allocator_count) :
@@ -261,7 +425,8 @@ namespace gadt
 				_allocator(*(new Allocator(allocator_count))),
 				_first_node(nullptr),
 				_last_node(nullptr),
-				_iterator(nullptr)
+				_iterator(nullptr),
+				_size(0)
 			{
 			}
 
@@ -270,7 +435,8 @@ namespace gadt
 				_allocator(allocator),
 				_first_node(nullptr),
 				_last_node(nullptr),
-				_iterator(nullptr)
+				_iterator(nullptr),
+				_size(0)
 			{
 			}
 
@@ -285,6 +451,7 @@ namespace gadt
 			//insert a new value in the end of the list.
 			void insert(const T& value)
 			{
+				_size++;//incr size of the list.
 				auto ptr = _allocator.construct(value);
 				if (_first_node == nullptr)
 				{
@@ -297,6 +464,12 @@ namespace gadt
 					_last_node->set_next_node(ptr);
 					_last_node = _last_node->next_node();
 				}
+			}
+
+			//get the size of the list.
+			inline size_t size() const
+			{
+				return _size;
 			}
 
 			//clear all nodes from allocator.
@@ -362,5 +535,7 @@ namespace gadt
 			//get last iterator.
 			inline node_pointer end() const { return _last_node; }
 		};
+
+		
 	}
 }

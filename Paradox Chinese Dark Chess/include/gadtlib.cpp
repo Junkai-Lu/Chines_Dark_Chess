@@ -32,18 +32,18 @@ using std::string;
 
 namespace gadt
 {
-	//a golbal color ostream 
-	console::costream ccout(std::cout);
-
 	namespace console
 	{
+		//set global console color.
+		ConsoleColor costream::_current_color = DEFAULT;
+
 		//change_color
-		std::string costream::change_color(ConsoleColor color)
+		void costream::change_color(ConsoleColor color)
 		{
+			_current_color = color;
 #ifdef __GADT_MSVC
 			HANDLE handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
 			SetConsoleTextAttribute(handle, color);
-			return std::string("");
 #elif defined(__GADT_GNUC)
 			static std::string color_str[16] =
 			{
@@ -65,51 +65,25 @@ namespace gadt
 				string("\e[0;40;37m")		//white = 15
 											//string("\e[0;40;37m")		//white = 15
 			};
-			return color_str[color];
+			std::cout << color_str[color];
 #endif
 		}
 
-		//printf in costream.
-		template <typename t_data>
-		void costream::print(t_data data, ConsoleColor color)
-		{
-			ConsoleColor temp_color = _color;
-			ccout << color << data << temp_color;
-		}
-		
+		//show error
 		void ShowError(std::string reason)
 		{
-			std::cout << std::endl;
-			Cprintf(">> ERROR: ", RED);
-			Cprintf(reason, WHITE);
+			//std::cout << std::endl;
+			Cprintf(">> ERROR", PURPLE);
+			std::cout << ": ";
+			Cprintf(reason, RED);
 			std::cout << std::endl << std::endl;
 		}
 
-		void Cprintf(std::string tex, ConsoleColor color)
-		{
-			ccout.print(tex, color);
-		}
-		void Cprintf(int data, ConsoleColor color)
-		{
-			ccout.print(data, color);
-		}
-		void Cprintf(double data, ConsoleColor color)
-		{
-			ccout.print(data, color);
-		}
-		void Cprintf(char data, ConsoleColor color)
-		{
-			ccout.print(data, color);
-		}
-
-		void ShowMessage(std::string message, bool show_msg)
+		//show message
+		void ShowMessage(std::string message)
 		{
 			std::cout << ">> ";
-			if (show_msg)
-			{
-				Cprintf("MSG: ", DEEP_GREEN);
-			}
-			Cprintf(message, GREEN);
+			Cprintf(message, WHITE);
 			std::cout << std::endl << std::endl;
 		}
 
@@ -238,4 +212,270 @@ namespace gadt
 		}
 	}
 
+	namespace table
+	{
+		void ConsoleTable::init_cells()
+		{
+			//init columns
+			for (size_t column = 0; column < _column_size; column++)
+			{
+				Column temp;
+				for (size_t row = 0; row < _row_size; row++)
+				{
+					temp.push_back(&((_cells[column])[row]));
+				}
+				_column.push_back(temp);
+			}
+
+			//init rows
+			for (size_t row = 0; row < _row_size; row++)
+			{
+				Row temp;
+				for (size_t column = 0; column < _column_size; column++)
+				{
+					temp.push_back(&((_cells[column])[row]));
+				}
+				_row.push_back(temp);
+			}
+		}
+
+		void ConsoleTable::basic_output(std::ostream & os, CellOutputFunc cell_cb, FrameOutputFunc frame_cb, bool enable_frame, bool enable_index)
+		{
+			const size_t space_before_line_size = 4;
+			std::string space_before_line(space_before_line_size, ' ');
+			
+			// ©³ ©» ©¿ ©· ©¥ ©§ ©Û ©Ó  ©Ì ©Ä ©¤ ©¦ ©à
+			auto Reprint = [](size_t time, std::string s)->std::string 
+			{
+				std::string temp;
+				for (size_t i = 0; i < time; i++)
+				{
+					temp += s;
+				}
+				return temp;
+			};
+
+			//print indexs upper the table.
+			if (enable_index)
+			{
+				os << space_before_line;
+				os << "  ";
+				for (size_t column = 0; column < _column_size; column++)
+				{
+					std::string index = console::IntergerToString(column + 1);
+					os << index << std::string(((_column_width[column]+1) * 2) - index.length(), ' ');
+				}
+				os << std::endl;
+			}
+
+			//print upper line of the table.
+			if (enable_index) { os << space_before_line; }
+			frame_cb("©³", os);
+			for (size_t column = 0; column < _column_size; column++)
+			{
+				frame_cb(Reprint(_column_width[column], "©¥"), os);
+				//os << Reprint(_column_width[column], "©¥");
+				if (column != _column_size - 1) { frame_cb("©Ó", os); }
+				else 
+				{
+					frame_cb("©·", os); 
+					os << std::endl;
+				}
+			}
+
+			for (size_t row = 0; row < _row_size; row++)
+			{
+				//print first line , include value and space.
+				if (enable_index)
+				{
+					std::string index = console::IntergerToString(row + 1);
+					os << ' ' << index << std::string(space_before_line_size - index.length() - 1, ' ');
+				}
+				std::string t("©§");
+				frame_cb(t, os);
+				for (size_t column = 0; column < _column_size; column++)
+				{
+					const size_t width = _column_width[column] * 2;
+					const TableCell& c = cell(column, row);
+					cell_cb(c, os, width);
+					if (c.str.length() < width)
+					{
+						os << std::string(width - c.str.length(), ' ');
+					}
+					if (column != _column_size - 1) { frame_cb("©¦",os); }
+					else 
+					{
+						frame_cb("©§",os);
+						os << std::endl;
+					}
+				}
+
+				//print second line
+				if (enable_index)
+				{
+					os << space_before_line;
+				}
+				if (row != _row_size - 1) { frame_cb("©Ä", os); }
+				else { frame_cb("©»", os); }
+				
+				for (size_t column = 0; column < _column_size; column++)
+				{
+					if (row != _row_size - 1) { frame_cb(Reprint(_column_width[column], "©¤"), os); }
+					else { frame_cb(Reprint(_column_width[column], "©¥"), os); }
+					
+					if (column != _column_size - 1) 
+					{
+						if (row != _row_size - 1) 
+						{ 
+							frame_cb("©à", os); 
+						}
+						else 
+						{
+							frame_cb("©Û", os); 
+						}
+					}
+					else 
+					{
+						if (row != _row_size - 1) 
+						{
+							frame_cb("©Ì", os);
+							os << std::endl;
+						}
+						else 
+						{
+							frame_cb("©¿", os); 
+							os << std::endl;
+						}
+					}
+				}
+			}
+
+		}
+
+		ConsoleTable::ConsoleTable(size_t column_size, size_t row_size) :
+			_column_size(column_size),
+			_row_size(row_size),
+			_cells(column_size, std::vector<TableCell>(row_size, TableCell())),
+			_column_width(column_size,_default_width)
+		{
+			init_cells();
+		}
+
+		ConsoleTable::ConsoleTable(size_t column_size, size_t row_size, std::initializer_list<std::initializer_list<std::string>> list) :
+			_column_size(column_size),
+			_row_size(row_size),
+			_cells(column_size, std::vector<TableCell>(row_size, TableCell())),
+			_column_width(column_size, _default_width)
+		{
+			init_cells();
+			size_t y = 0;
+			for (auto row : list)
+			{
+				size_t x = 0;
+				for (auto value : row)
+				{
+					if (x < _column_size && y < _row_size)
+					{
+						((_cells[x])[y]).str = value;
+					}
+					x++;
+				}
+				y++;
+			}
+		}
+		
+		void ConsoleTable::set_cell_in_row(size_t row, TableCell cell)
+		{
+			for (pointer cell_ptr : get_row(row))
+			{
+				*cell_ptr = cell;
+			}
+		}
+
+		void ConsoleTable::set_cell_in_row(size_t row, std::initializer_list<TableCell> cell_list)
+		{
+			size_t i = 0;
+			for (const TableCell& cell : cell_list)
+			{
+				if (i < get_row(row).size())
+				{
+					*get_row(row)[i] = cell;
+				}
+			}
+		}
+
+		void ConsoleTable::set_cell_in_column(size_t column, TableCell cell)
+		{
+			for (pointer cell_ptr : get_column(column))
+			{
+				*cell_ptr = cell;
+			}
+		}
+
+		void ConsoleTable::set_cell_in_column(size_t column, std::initializer_list<TableCell> cell_list)
+		{
+			size_t i = 0;
+			for (const TableCell& cell : cell_list)
+			{
+				if (i < get_column(column).size())
+				{
+					*get_column(column)[i] = cell;
+				}
+			}
+		}
+		
+		//output string
+		std::string ConsoleTable::output_string(bool enable_frame, bool enable_index)
+		{
+			CellOutputFunc cell_cb = [](const TableCell& c, std::ostream& os, size_t width)->void {
+				std::string str = c.str;
+				if (str.length() > width)
+				{
+					str = str.substr(0, width);
+				}
+				os << str;
+			};
+			FrameOutputFunc frame_cb = [](std::string s, std::ostream& os)->void {
+				os << s;
+			};
+			if (!enable_frame)
+			{
+				frame_cb = [](std::string s, std::ostream& os)->void {
+					os << std::string(s.length(), ' ');
+				};
+			}
+			std::stringstream ss;
+			basic_output(ss, cell_cb, frame_cb,enable_frame, enable_index);
+			return ss.str();
+		}
+
+		//print 
+		void ConsoleTable::print(bool enable_frame, bool enable_index)
+		{
+			CellOutputFunc callback = [](const TableCell& c, std::ostream& os, size_t width)->void {
+				std::string str = c.str;
+				if (str.length() > width)
+				{
+					str = str.substr(0, width);
+				}
+				else
+				{
+					//str = str + std::string(width - str.length(), ' ');
+				}
+				console::Cprintf(str, c.color);
+			};
+			FrameOutputFunc frame_cb = [](std::string s, std::ostream& os)->void {
+				os << s;
+			};
+			if (!enable_frame)
+			{
+				frame_cb = [](std::string s, std::ostream& os)->void {
+					os << std::string(s.length(), ' ');
+				};
+			}
+			basic_output(std::cout, callback, frame_cb, enable_frame, enable_index);
+		}
+	}
 }
+
+

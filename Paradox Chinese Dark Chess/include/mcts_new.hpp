@@ -388,7 +388,13 @@ namespace gadt
 			}
 		};
 
-		//convert mcts search tree to json.
+		/*
+		* MctsToJson is used for convert mcts search tree to json tree.
+		*
+		* [State] is the game-state class, which is defined by the user.
+		* [Action] is the game-action class, which is defined by the user.
+		* [Result] is the game-result class, which stand for a terminal state of the game.
+		*/
 		template<typename State, typename Action, typename Result, bool _is_debug>
 		class MctsToJson
 		{
@@ -458,12 +464,12 @@ namespace gadt
 
 		public:
 			//constructor function.
-			MctsToJson(SearchNode* mcts_root_node, StateToStrFunc StateToStr, CustomInfoFunc CustomInfo = [](const SearchNode&, VisualNode&)->void {}) :
+			MctsToJson(SearchNode* mcts_root_node, StateToStrFunc StateToStr) :
 				_mcts_root_node(mcts_root_node),
 				_json_tree(),
 				_include_state(true),
 				_StateToStr(StateToStr),
-				_CustomInfo(CustomInfo)
+				_CustomInfo([](const SearchNode&, VisualNode&)->void {})
 			{
 				ConvertToVisualTree(mcts_root_node, _json_tree);
 			}
@@ -509,11 +515,12 @@ namespace gadt
 		class MctsSearch
 		{
 		public:
-			using Node       = MctsNode<State, Action, Result, _is_debug>;	  //searcg node.	
-			using VisualTree = MctsToJson<State, Action, Result, _is_debug>; //json tree
-			using Allocator  = typename Node::Allocator;							  //allocator of nodes
-			using ActionSet  = typename Node::ActionSet;							  //set of Action
-			using NodePtrSet = typename Node::NodePtrSet;							  //set of ptrs to child nodes.
+			using Node			= MctsNode<State, Action, Result, _is_debug>;		//searcg node.	
+			using JsonConvert	= MctsToJson<State, Action, Result, _is_debug>;		//json tree
+			using LogController = log::SearchLogController<State, Action, Result>;  //log controller
+			using Allocator		= typename Node::Allocator;							//allocator of nodes
+			using ActionSet		= typename Node::ActionSet;							//set of Action
+			using NodePtrSet	= typename Node::NodePtrSet;						//set of ptrs to child nodes.
 			
 		private:
 			using FuncPackage	= typename Node::FuncPackage;
@@ -525,40 +532,26 @@ namespace gadt
 				typename FuncPackage::AllowExcuteGcFunc			AllowExcuteGc;
 				typename FuncPackage::ValueForRootNodeFunc		ValueForRootNode;
 			};
-			struct LogFuncPackage
-			{
-				using StateToStrFunc	= std::function<std::string(const State& state)>;
-				using ActionToStrFunc	= std::function<std::string(const Action& action)>;
-				using ResultToStrFunc	= std::function<std::string(const Result& result)>;
-
-				StateToStrFunc		StateToStr;
-				ActionToStrFunc		ActionToStr;
-				ResultToStrFunc		ResultToStr;
-			};
 
 		private:
 			FuncPackage		_func_package;			//function package of the search.
+			LogController	_log_controller;		//controller of the logs.
 			Allocator&		_allocator;				//the allocator for the search.
 			const bool		_private_allocator;		//use private allocator.
 			double			_timeout;				//set timeout (seconds).
 			size_t			_max_iteration;			//set max iteration times.
 			bool			_enable_gc;				//allow garbage collection if the tree run out of memory.
-			bool			_enable_log;			//enable log visualization.
-			std::ostream*	_log_ptr;				//pointer to log ostream.
-
-			const char* MCTS_JSON_LOG_NAME = "MctsJsonLog.txt";
 
 		public:
 			//package of default functions.
 			const DefaultFuncPackage DefaultFunc;
-			LogFuncPackage LogFunc;
 
 		private:
 
 			//get reference of log ostream
 			inline std::ostream& log()
 			{
-				return *_log_ptr;
+				return _log_controller.output_stream();
 			}
 
 			//get info of this search.
@@ -571,7 +564,7 @@ namespace gadt
 					<< "    timeout: " << _timeout << std::endl
 					<< "    max_iteration: " << _max_iteration << std::endl
 					<< "    enable_gc: " << _enable_gc << std::endl
-					<< "    enable_log: " << _enable_log << std::endl
+					<< "    log_enable: " << _log_controller.log_enabled() << std::endl
 					<< "}" << std::endl;
 				return ss.str();
 			}
@@ -579,7 +572,7 @@ namespace gadt
 			//enable log
 			inline bool enable_log() const
 			{
-				return _enable_log;
+				return _log_controller.enable();
 			}
 
 			//enable gc
@@ -637,7 +630,7 @@ namespace gadt
 			//excute iteration function.
 			Action ExcuteMCTS(State root_state, double timeout, size_t max_iteration, bool enable_gc)
 			{
-				if (_enable_log)
+				if (_log_controller.log_enabled())
 				{
 					log() << "[MCTS] start excute monte carlo tree search..." << std::endl
 						<< "[MCTS] info = " << info() << std::endl;
@@ -680,21 +673,29 @@ namespace gadt
 				if (is_debug()) { GADT_CHECK_WARNING(g_MCTS_NEW_ENABLE_WARNING, root_actions.size() == 0, "MCTS101: root node do not exist any available action."); }
 				UcbValue max_value = 0;
 				size_t max_value_node_index = 0;
-				if (_enable_log) 
+
+				//output log if enabled.
+				if (_log_controller.log_enabled())
 				{ 
-					VisualTree json_tree(root_node, LogFunc.StateToStr);
-					std::ofstream os(MCTS_JSON_LOG_NAME);
-					json_tree.output_json(os);
+					//JsonConvert json_convert(root_node, _log_controller.StateToStr());
+					std::ofstream os(_log_controller.json_output_path());
+					//json_convert.output_json(os);
 					log() << "[MCTS] iteration finished." << std::endl
 						<< "[MCTS] actions = {" << std::endl;
+				}
+
+				//output Json if enabled.
+				if (_log_controller.json_output_enabled())
+				{
+
 				}
 				for (size_t i = 0; i < root_actions.size(); i++)
 				{
 					auto child_ptr = root_node->child_node(i);
 					if (is_debug()) { GADT_CHECK_WARNING(g_MCTS_NEW_ENABLE_WARNING, root_node->child_node(0) == nullptr, "MCTS107: empty child node under root node."); }
-					if (_enable_log)
+					if (_log_controller.log_enabled())
 					{
-						log() << "action " << i << ": "<< LogFunc.ActionToStr(root_actions[i])<<", value: ";
+						log() << "action " << i << ": "<< _log_controller.ActionToStr(root_actions[i])<<", value: ";
 					}
 					if (child_ptr != nullptr)
 					{
@@ -704,20 +705,20 @@ namespace gadt
 							max_value = child_value;
 							max_value_node_index = i;
 						}
-						if (_enable_log)
+						if (_log_controller.log_enabled())
 						{
 							log() << "[" << child_value << "]" << std::endl;
 						}
 					}
 					else
 					{
-						if (_enable_log)
+						if (_log_controller.log_enabled())
 						{
 							log() << "[ deleted ]" << std::endl;
 						}
 					}
 				}
-				if (_enable_log)
+				if (_log_controller.log_enabled())
 				{
 					log() << "[MCTS] best action index: "<< max_value_node_index << std::endl;
 				}
@@ -744,8 +745,6 @@ namespace gadt
 				),
 				_allocator(*(new Allocator(max_node))),
 				_private_allocator(true),
-				_enable_log(false),
-				_log_ptr(&std::cout),
 				DefaultFunc(DefaultFuncInit())
 			{
 				FuncInit();
@@ -769,8 +768,6 @@ namespace gadt
 				),
 				_allocator(allocator),
 				_private_allocator(false), 
-				_enable_log(false),
-				_log_ptr(&std::cout),
 				DefaultFunc(DefaultFuncInit())
 			{
 				FuncInit();
@@ -799,20 +796,18 @@ namespace gadt
 
 			//enable log output to ostream.
 			inline void EnableLog(
-				typename LogFuncPackage::StateToStrFunc     StateToStr,
-				typename LogFuncPackage::ActionToStrFunc    ActionToStr,
-				typename LogFuncPackage::ResultToStrFunc    ResultToStr,
+				typename LogController::StateToStrFunc     _state_to_str,
+				typename LogController::ActionToStrFunc    _action_to_str,
+				typename LogController::ResultToStrFunc    _result_to_str,
 				std::ostream& log = std::cout
 			)
 			{
-				LogFunc = { StateToStr,ActionToStr,ResultToStr };
-				_enable_log = true;
-				_log_ptr = &log;
+				_log_controller.EnableLog(_state_to_str, _action_to_str, _result_to_str, log);
 			}
 
 			inline void DisableLog()
 			{
-				_enable_log = false;
+				_log_controller.DisableLog();
 			}
 
 			//return the value of _is_debug.

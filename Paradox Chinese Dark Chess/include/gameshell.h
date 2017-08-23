@@ -27,476 +27,892 @@ namespace gadt
 {
 	namespace shell
 	{
-		//Shell Page Interface
+		//declartion.
+		class ShellPageBase;
 		class GameShell;
-		class ShellPageBase
+		using DirList = std::list<std::string>;
+		using ParamsList = std::vector<std::string>;
+
+		//shell defination.
+		namespace define
 		{
-			friend class GameShell;
-		private:
-			GameShell* _belonging_shell;	//the game shell this page belong to.
-			std::string _name;				//name, each name correspond to one page in a game shell.
-			size_t _index;					//page index, each page have a unique index.
-			ShellPageBase* _call_source;	//call source point to the page that call this page.
+			constexpr const bool   g_SHELL_ENABLE_WARNING = true;			//enable warning.
+			constexpr const size_t g_COMMAND_TYPE_NUMBER = 5;		//command type number.
+			constexpr const size_t g_MAX_COMMAND_LENGTH = 15;		//max length of the command. 
 
-		protected:
-			std::function<void()> _info_func;			//info function. would be called before show menu.
-			std::function<void()> _constructor_func;	//constructor func. would be called when enter the page.
-			std::function<void()> _destructor_func;		//destructror func. would be called when quit the page.
+			//list command, default is 'ls'
+			constexpr const char*  g_LIST_COMMAND_NAME = "ls";	
+			constexpr const char*  g_LIST_COMMAND_DESC = "get command list";
 
-			//static paramaters.
-			static const char*  g_SHELL_HELP_COMMAND_STR;			//help command, default is 'help'
-			static const char*  g_SHELL_EXIT_COMMAND_STR;			//exit page command, default is 'return'
-			static const char*  g_SHELL_CLEAN_COMMAND_STR;			//clean screen command, default is 'clear'
-			static const size_t g_SHELL_MAX_COMMAND_LENGTH;		//max length of the command. 
+			//help command, default is 'help'
+			constexpr const char*  g_HELP_COMMAND_NAME = "help";	
+			constexpr const char*  g_HELP_COMMAND_DESC = "get all shell command";
 
-		protected:
+			//command that return to previous page, default is '..'
+			constexpr const char*  g_RETURN_COMMAND_NAME = "..";	
+			constexpr const char*  g_RETURN_COMMAND_DESC = "return to previous menu.";
 
-			inline void set_info_func(std::function<void()> info_func)
+			//command that return to root page, default is '.'
+			constexpr const char*  g_ROOT_COMMAND_NAME = ".";		
+			constexpr const char*  g_ROOT_COMMAND_DESC = "return to root page.";
+
+			//clean screen command, default is 'clear'
+			constexpr const char*  g_CLEAR_COMMAND_NAME = "clear";	
+			constexpr const char*  g_CLEAR_COMMAND_DESC = "clean screen.";
+
+			//command that exit the program, default is 'exit'
+			constexpr const char*  g_EXIT_COMMAND_NAME = "exit";
+			constexpr const char*  g_EXIT_COMMAND_DESC = "exit program.";
+
+			//get the name of command type.
+			std::string GetCommandTypeName(size_t i);
+			
+			//get the symbol of command type.
+			std::string GetCommandTypeSymbol(size_t i);
+
+			//default params check func.
+			bool DefaultParamsCheck(const ParamsList& list);
+
+			//default no params check func.
+			bool DefaultNoParamsCheck(const ParamsList& list);
+
+
+		}
+
+		//shell command class.
+		namespace command
+		{
+			//command type
+			enum CommandType :uint8_t
 			{
-				_info_func = info_func;
-			}
+				DEFAULT_COMMAND = 0,
+				DATA_COMMAND = 1,
+				PARAMS_COMMAND = 2,
+				DATA_AND_PARAMS_COMMAND = 3,
+				CHILD_PAGE_COMMAND = 4
+			};
 
-			inline void set_constructor_func(std::function<void()> constructor_func)
+			//Command Parser.
+			class CommandParser
 			{
-				_constructor_func = constructor_func;
-			}
+			private:
+				bool		_is_legal;
+				DirList		_commands;
+				ParamsList	_params;
 
-			inline void set_destructor_func(std::function<void()> destructor_func)
+			private:
+
+				//parse the command.
+				bool ParseParameters(std::string params);
+
+				//parse command
+				bool ParseCommands(std::string commands);
+
+				//init by command
+				bool ParseOriginalCommand(std::string original_command);
+
+				//constructor by initialized.
+				CommandParser(bool is_legal, const std::list<std::string>& commands, const std::vector<std::string>& params) :
+					_is_legal(is_legal),
+					_commands(commands),
+					_params(params)
+				{
+				}
+
+			public:
+
+				//return true if the string is legal
+				static bool CheckStringLegality(std::string str);
+
+				//default constructor.
+				CommandParser() :
+					_is_legal(false),
+					_commands(),
+					_params()
+				{
+				}
+
+				//constructor function by command string.
+				CommandParser(std::string original_command) :
+					_is_legal(false),
+					_commands(),
+					_params()
+				{
+					_is_legal = ParseOriginalCommand(original_command);
+				}
+
+				//constructor function by parent command parser
+				inline void to_next_command()
+				{
+					_commands.pop_front();
+				}
+
+				//clear data.
+				inline void clear()
+				{
+					_is_legal = false;
+					_commands.clear();
+					_params.clear();
+				}
+
+				//return true if the parser is legal.
+				inline bool is_legal() const
+				{
+					return _is_legal;
+				}
+
+				//refresh parser.
+				inline void refresh(std::string original_command)
+				{
+					clear();
+					_is_legal = ParseOriginalCommand(original_command);
+				}
+
+				//return true if the command is the only command
+				inline bool is_last_command() const
+				{
+					return _commands.size() == 1;
+				}
+
+				//return true if there are no commands.
+				inline bool no_commands() const
+				{
+					return _commands.size() == 0;
+				}
+
+				//return true if there are no parameters.
+				inline bool no_params() const
+				{
+					return _params.size() == 0;
+				}
+
+				//print details
+				void print_details() const
+				{
+					std::cout << "commands:" << std::endl;
+					for (auto cmd : _commands)
+					{
+						std::cout << "  <" << cmd << ">" << std::endl;
+					}
+					std::cout << "parameters:" << std::endl;
+					for (auto param : _params)
+					{
+						std::cout << "  <" << param << ">" << std::endl;
+					}
+				}
+
+				//get the params in this command.
+				inline const std::vector<std::string>& params() const
+				{
+					return _params;
+				}
+
+				//get the first command.
+				inline std::string fir_command() const
+				{
+					if (_is_legal && _commands.size() > 0)
+					{
+						return _commands.front();
+					}
+					return "";
+				}
+
+				//get next state of current parser.
+				CommandParser GetNext() const
+				{
+					auto temp = _commands;
+					if (temp.size() > 0)
+					{
+						temp.pop_front();
+					}
+					return CommandParser(_is_legal, temp, _params);
+				}
+			};
+
+			//Command Data Base
+			template<typename DataType>
+			class CommandBase
 			{
-				_destructor_func = destructor_func;
-			}
+			public:
+				using ParamsCheckFunc = std::function<bool(const ParamsList&)>;
+				using DefaultCommandFunc = std::function<void()>;
+				using DataCommandFunc = std::function<void(DataType&)>;
+				using ParamsCommandFunc = std::function<void(const ParamsList&)>;
+				using DataAndParamsCommandFunc = std::function<void(DataType&, const ParamsList&)>;
 
-			inline void set_call_source(ShellPageBase* call_source)
+			private:
+
+				const CommandType		_type;
+				const std::string		_name;
+				const std::string		_desc;
+				const ParamsCheckFunc	_params_check;
+
+			protected:
+				//constructor.
+				CommandBase(CommandType type, std::string name, std::string desc, ParamsCheckFunc params_check) :
+					_type(type),
+					_name(name),
+					_desc(desc),
+					_params_check(params_check)
+				{
+				}
+
+			public:
+
+				//waning if excute failed.
+				void wrong_params_warning() const
+				{
+					console::ShowError("illegal parameters");
+				}
+
+				//excute params check.
+				inline bool params_check(const ParamsList& list)
+				{
+					return _params_check(list);
+				}
+
+				//get type.
+				CommandType type() const
+				{
+					return _type;
+				}
+
+				//get name.
+				std::string name() const
+				{
+					return _name;
+				}
+
+				//get desc.
+				std::string desc() const
+				{
+					return _desc;
+				}
+
+				//excute interface.
+				virtual void Run(DataType&, const ParamsList&) = 0;
+			};
+
+			//default func command record.
+			template<typename DataType>
+			class DefaultCommand :public CommandBase<DataType>
 			{
-				_call_source = call_source;
-			}
+			private:
+				DefaultCommandFunc _default_command_func;
 
-			//get belonging shell.
-			inline GameShell* belonging_shell() const
+			public:
+
+				DefaultCommand(std::string name, std::string desc, DefaultCommandFunc default_command_func) :
+					CommandBase<DataType>(DEFAULT_COMMAND, name, desc, define::DefaultNoParamsCheck),
+					_default_command_func(default_command_func)
+				{
+				}
+
+				void Run(DataType& data, const ParamsList& params) override
+				{
+					_default_command_func();
+				}
+			};
+
+			//data only command record.
+			template<typename DataType>
+			class DataCommand :public CommandBase<DataType>
 			{
-				return _belonging_shell;
-			}
+			private:
+				DataCommandFunc _no_params_command_func;
 
-			//get call source.
-			inline ShellPageBase* call_source() const
+			public:
+				DataCommand(std::string name, std::string desc, DataCommandFunc no_params_command_func) :
+					CommandBase<DataType>(DATA_COMMAND, name, desc, define::DefaultNoParamsCheck),
+					_no_params_command_func(no_params_command_func)
+				{
+				}
+
+				void Run(DataType& data, const ParamsList& params) override
+				{
+					_no_params_command_func(data);
+				}
+			};
+
+			//default func command record.
+			template<typename DataType>
+			class ParamsCommand :public CommandBase<DataType>
 			{
-				return _call_source;
-			}
+			private:
+				ParamsCommandFunc _params_command_func;
 
-			//get page name.
-			inline std::string name() const
+			public:
+
+				ParamsCommand(std::string name, std::string desc, ParamsCommandFunc params_command_func, ParamsCheckFunc check) :
+					CommandBase<DataType>(PARAMS_COMMAND, name, desc, check),
+					_params_command_func(params_command_func)
+				{
+				}
+
+				void Run(DataType& data, const ParamsList& params) override
+				{
+					_params_command_func(params);
+				}
+			};
+
+			//data and params command record.
+			template<typename DataType>
+			class DataAndParamsCommand :public CommandBase<DataType>
 			{
-				return _name;
-			}
+			private:
+				DataAndParamsCommandFunc _data_params_command_func;
 
-			//get page index.
-			inline size_t index() const
+			public:
+				DataAndParamsCommand(std::string name, std::string desc, DataAndParamsCommandFunc data_params_command_func, ParamsCheckFunc params_check) :
+					CommandBase<DataType>(DATA_AND_PARAMS_COMMAND, name, desc, params_check),
+					_data_params_command_func(data_params_command_func)
+				{
+				}
+
+				void Run(DataType& data, const ParamsList& params) override
+				{
+					_data_params_command_func(data, params);
+				}
+			};
+
+			//child page command record
+			template<typename DataType>
+			class ChildPageCommand :public CommandBase<DataType>
 			{
-				return _index;
-			}
+			private:
+				GameShell* _belonging_shell;
+				std::string _page_name;
 
-			//print path.
-			void ShowPath() const;
+			public:
 
-			//To be focus.
-			void BeFocus();
+				ChildPageCommand(std::string name, std::string desc, GameShell* belonging_shell, std::string page_name) :
+					CommandBase<DataType>(CHILD_PAGE_COMMAND, name, desc, [](const ParamsList& list)->bool {return list.size() == 0 ? true : false; }),
+					_belonging_shell(belonging_shell),
+					_page_name(page_name)
+				{
+				}
 
-			//allocate page index.
-			static inline size_t AllocPageIndex()
+				void Run(DataType& data, const ParamsList& params) override
+				{
+					_belonging_shell->EnterPage(_page_name);
+				}
+			};
+
+		}
+
+		//shell pages class
+		namespace page
+		{
+			//ShellPageBase
+			class ShellPageBase
 			{
-				static size_t page_index = 0;
-				return page_index++;
-			}
+				friend class GameShell;
+			public:
+				using InfoFunc		= std::function<void()>;
+				using CommandParser	= command::CommandParser;
 
-			//create a new page.
-			ShellPageBase(GameShell* belonging_shell, std::string name);
+			private:
+				GameShell*		_belonging_shell;	//the game shell this page belong to.
+				std::string		_name;				//name, each name correspond to one page in a game shell.
+				size_t			_index;				//page index, each page have a unique index.
+				ShellPageBase*	_call_source;		//call source point to the page that call this page.
 
-			//copy constructor function is disallowed.
-			ShellPageBase(ShellPageBase& sb) = delete;
+			protected:
 
-			//a virtural function.
-			virtual void Run(ShellPageBase* call_source) = 0;
+				InfoFunc _info_func;			//info function. would be called before show menu.
 
-		public:
-			void CleanScreen() const;
-			virtual ~ShellPageBase() = default;
+				inline void set_call_source(ShellPageBase* call_source)
+				{
+					_call_source = call_source;
+				}
 
-		};
+				//get belonging shell.
+				inline GameShell* belonging_shell() const
+				{
+					return _belonging_shell;
+				}
 
-		//Shell
+				//get call source.
+				inline ShellPageBase* call_source() const
+				{
+					return _call_source;
+				}
+
+				//get page name.
+				inline std::string name() const
+				{
+					return _name;
+				}
+
+				//get page index.
+				inline size_t index() const
+				{
+					return _index;
+				}
+
+				//allocate page index.
+				static inline size_t AllocPageIndex()
+				{
+					static size_t page_index = 0;
+					return page_index++;
+				}
+
+				//create a new page.
+				ShellPageBase(GameShell* belonging_shell, std::string name);
+
+				//copy constructor function is disallowed.
+				ShellPageBase(ShellPageBase& sb) = delete;
+
+				//execute command.
+				virtual void ExecuteCommand(std::string command, const ParamsList&) = 0;
+
+				//print command list.
+				virtual void PrintCommandList(std::string param) = 0;
+
+				//return true if the page exist.
+				virtual bool ExistChildPage(std::string name) = 0;
+
+				//return true if the page exist.
+				virtual bool ExistCommand(std::string name) = 0;
+
+			public:
+
+				virtual ~ShellPageBase() = default;
+
+				//add info function about this page, the func would be execute before the page works. 
+				inline void SetInfoFunc(InfoFunc info_func)
+				{
+					_info_func = info_func;
+				}
+			};
+
+			//Shell Page
+			template<typename DataType>
+			class ShellPage final :public ShellPageBase
+			{
+			private:
+
+				friend class GameShell;
+
+				using CommandBase				= command::CommandBase<DataType>;
+				using DefaultCommand			= command::DefaultCommand<DataType>;
+				using DataCommand				= command::DataCommand<DataType>;
+				using ParamsCommand				= command::ParamsCommand<DataType>;
+				using DataAndParamsCommand		= command::DataAndParamsCommand<DataType>;
+				using ChildPageCommand			= command::ChildPageCommand<DataType>;
+				using CommandPtr				= std::unique_ptr<CommandBase>;
+				using ParamsCheckFunc			= typename CommandBase::ParamsCheckFunc;
+				using DefaultCommandFunc		= typename CommandBase::DefaultCommandFunc;
+				using DataCommandFunc			= typename CommandBase::DataCommandFunc;
+				using ParamsCommandFunc			= typename CommandBase::ParamsCommandFunc;
+				using DataAndParamsCommandFunc	= typename CommandBase::DataAndParamsCommandFunc;
+				
+			private:
+
+				DataType _data;											//data of the page.
+				std::map<std::string, CommandPtr>		_command_list;	//command list
+				std::vector<std::vector<std::string>>	_cmd_name_list;	//list of commands by names.
+
+			private:
+
+				//print command list
+				void PrintCommandList(std::string param) override
+				{
+					
+					std::cout << std::endl;
+					if (param == "-t")
+					{
+						for (size_t i = 0; i < define::g_COMMAND_TYPE_NUMBER; i++)
+						{
+
+							if (_cmd_name_list[i].size() > 0)
+							{
+								std::cout << ">> ";
+								console::Cprintf("[" + define::GetCommandTypeName(i) + "]\n", console::YELLOW);
+								for (auto name : _cmd_name_list[i])
+								{
+									//const std::string& name = pair.first;
+									const std::string& desc = _command_list[name].get()->desc();
+									std::cout << "   '";
+									console::Cprintf(name, console::RED);
+									std::cout << "'" << std::string(define::g_MAX_COMMAND_LENGTH, ' ').substr(0, define::g_MAX_COMMAND_LENGTH - name.length())
+										<< desc << std::endl;
+								}
+								std::cout << std::endl;
+							}
+						}
+					}
+					else//-n
+					{
+						std::cout << ">> ";
+						console::Cprintf("[ COMMANDS ]\n", console::YELLOW);
+						for (const auto& pair : _command_list)
+						{
+							//const std::string& name = pair.first;
+							auto name = pair.first;
+							auto desc = pair.second.get()->desc();
+							auto type = pair.second.get()->type();
+							//std::cout << "  ";
+							//console::Cprintf(define::GetCommandTypeSymbol(type), console::GRAY);
+							std::cout << "   '";
+							console::Cprintf(name, console::RED);
+							std::cout << "'" << std::string(define::g_MAX_COMMAND_LENGTH, ' ').substr(0, define::g_MAX_COMMAND_LENGTH - name.length())
+								<< desc << std::endl;
+						}
+						std::cout << std::endl;
+					}
+				}
+
+				//return true if the page exist.
+				bool ExistChildPage(std::string name) override
+				{
+					if (command_exist(name))
+					{
+						if (_command_list[name].get()->type() == command::CHILD_PAGE_COMMAND)
+						{
+							return true;
+						}
+					}
+					return false;
+				}
+
+				//return true if the page exist.
+				bool ExistCommand(std::string name) override
+				{
+					if (command_exist(name))
+					{
+						if (_command_list[name].get()->type() != command::CHILD_PAGE_COMMAND)
+						{
+							return true;
+						}
+					}
+					return false;
+				}
+
+				//data operator
+				inline DataType& data()
+				{
+					return _data;
+				}
+
+				//return true if the command name exist
+				inline bool command_exist(std::string command) const
+				{
+					return _command_list.count(command) > 0;
+				}
+
+				//return true if the command is legal.
+				inline bool CheckCommandNameLegality(std::string command)
+				{
+					if (command.size() > define::g_MAX_COMMAND_LENGTH)
+					{
+						console::ShowError("command '" + command + "' out of max length");
+						return false;
+					}
+					if (!command::CommandParser::CheckStringLegality(command))
+					{
+						console::ShowError("illegal command name '" + command + "'.");
+						return false;
+					}
+					return true;
+				}
+
+				//insert command.
+				inline void InsertCommand(std::string name, CommandPtr& cmd_data_ptr)
+				{
+					_cmd_name_list[cmd_data_ptr.get()->type()].push_back(name);
+					_command_list.insert(std::pair<std::string, CommandPtr>(name, std::move(cmd_data_ptr)));
+				}
+
+				//default function.
+				ShellPage(GameShell* belonging_shell, std::string name) :
+					ShellPageBase(belonging_shell, name),
+					_data(),
+					_command_list(),
+					_cmd_name_list(define::g_COMMAND_TYPE_NUMBER)
+				{
+				}
+
+				//create a new shell page.
+				template<class... Types>
+				ShellPage(GameShell* belonging_shell, std::string name, Types&&... args) :
+					ShellPageBase(belonging_shell, name),
+					_data(std::forward<Types>(args)...),
+					_command_list(),
+					_cmd_name_list(define::g_COMMAND_TYPE_NUMBER)
+				{
+				}
+
+				//copy constructor is disallowed.
+				ShellPage(ShellPage&) = delete;
+
+			public:
+
+				//execute command by name
+				void ExecuteCommand(std::string command, const ParamsList& params) override
+				{
+					if (command_exist(command))
+					{
+						auto& cmd = _command_list[command];
+						if (cmd->params_check(params) == true)
+						{
+							cmd->Run(_data, params);
+						}
+						else
+						{
+							cmd->wrong_params_warning();
+						}
+					}
+					else
+					{
+						console::ShowError("command " + command + " not found");
+					}
+				}
+
+				/*
+				* overloaded AddFunction.
+				* add DefaultCommand which do not have any parameters.
+				*
+				* [name] is the name of command.
+				* [func] is the added function, type = void()
+				* [desc] is description of the command.
+				*/
+				void AddFunction(std::string name, std::string desc, DefaultCommandFunc func)
+				{
+					if (CheckCommandNameLegality(name))
+					{
+						auto command_ptr = CommandPtr(new DefaultCommand(name, desc, func));
+						InsertCommand(name, command_ptr);
+					}
+				}
+
+				/*
+				* overloaded AddFunction.
+				* add DataCommand that allows to operator binded data without parameters
+				*
+				* [name] is the name of command.
+				* [func] is the added function, type = void(DataType&)
+				* [desc] is description of the command.
+				*/
+				void AddFunction(std::string name, std::string desc, DataCommandFunc func)
+				{
+					if (CheckCommandNameLegality(name))
+					{
+						auto command_ptr = CommandPtr(new DataCommand(name, desc, func));
+						InsertCommand(name, command_ptr);
+					}
+				}
+
+				/*
+				* overloaded AddFunction.
+				* add ParamsCommand which allows to be executed with parameters.
+				*
+				* [name] is the name of command.
+				* [func] is the added function, type = void(const ParamsList&)
+				* [desc] is description of the command.
+				* [check] is the parameters check function, type = bool(const ParamsList&)
+				*/
+				void AddFunction(std::string name, std::string desc, ParamsCommandFunc func, ParamsCheckFunc check = define::DefaultParamsCheck)
+				{
+					if (CheckCommandNameLegality(name))
+					{
+						auto command_ptr = CommandPtr(new ParamsCommand(name, desc, func, check));
+						InsertCommand(name, command_ptr);
+					}
+				}
+
+				/*
+				* overloaded AddFunction.
+				* add DataAndParamsCommand which allows to operator binded data with parameters.
+				*
+				* [name] is the name of command.
+				* [func] is the added function, type = void(DataType&, const ParamsList&)
+				* [desc] is description of the command.
+				* [check] is the parameters check function, type = bool(const ParamsList&)
+				*/
+				void AddFunction(std::string name, std::string desc, DataAndParamsCommandFunc func, ParamsCheckFunc check = define::DefaultParamsCheck)
+				{
+					if (CheckCommandNameLegality(name))
+					{
+						auto command_ptr = CommandPtr(new DataAndParamsCommand(name, desc, func, check));
+						InsertCommand(name, command_ptr);
+					}
+				}
+
+				/*
+				* AddChildPage.
+				* add one page as the child page of current page.
+				*
+				* [child_name] is the name of child page.
+				* [desc] is description of the command.
+				*/
+				inline void AddChildPage(std::string child_name, std::string desc)
+				{
+					if (CheckCommandNameLegality(child_name))
+					{
+						auto child_page_ptr = CommandPtr(new ChildPageCommand(child_name, desc, belonging_shell(), child_name));
+						InsertCommand(child_name, child_page_ptr);
+					}
+				}
+			};
+		}
+
+		/*
+		* GameShell a unix-style shell. allow user to add function and pages.
+		*
+		* [name] is the name of the shell.
+		*/
 		class GameShell final
 		{
 			friend ShellPageBase;
+		private:
+			using CommandParser = command::CommandParser;
+			using ShellPageBase = page::ShellPageBase;
+
+			using InfoFunc = typename ShellPageBase::InfoFunc;
+			using PagePtr = std::shared_ptr<ShellPageBase>;
+			using DirList = std::list<std::string>;
 
 		private:
 			//global variable
-			static GameShell* _g_focus_game;	//focus page, that is used for show path.
+			static GameShell* _g_focus_game;				//focus page, that is used for show path.									
+			std::map<std::string, PagePtr>	_page_table;	//page table.
+			DirList							_dir_list;		//list of dirs.
+			std::string						_name;			//name of the shell.
+			InfoFunc						_info_func;		//default info func.
+			page::ShellPage<int>			_shell_cmd;		//shell_cmd
 
-												//page table
-			std::map<std::string, std::shared_ptr<ShellPageBase>> _page_table;
-			std::string _name;
-			ShellPageBase* _focus_page;
+		private:
+			//print current dir.
+			void PrintDir() const;
 
-		public:
+			//print input tips.
+			void InputTip(std::string tip = "");
+
+			//get input line by string format.
+			std::string GetInput()
+			{
+				char buffer[256];
+				std::cin.getline(buffer, 256);
+				return std::string(buffer);
+			}
+
+			//return true if the page name exist.
+			inline bool page_exist(std::string name) const
+			{
+				return _page_table.count(name) > 0 || name == define::g_RETURN_COMMAND_NAME || name == define::g_ROOT_COMMAND_NAME;
+			}
+
+			//to be the focus.
+			inline void be_focus()
+			{
+				_g_focus_game = this;
+			}
+
+			//add page
+			inline void add_page(std::string name, std::shared_ptr<ShellPageBase> new_page)
+			{
+				_page_table[name] = new_page;
+			}
+
+			//return to previous page.
+			void ReturnToPreviousPage();
+
+			//return to root page
+			inline void ReturnToRootPage()
+			{
+				std::string temp = _dir_list.front();
+				_dir_list.clear();
+				_dir_list.push_back(temp);
+			}
+
+			//clear screen
+			void ClearScreen() const;
+
+			//initialize shell commands.
+			void ShellCmdInit();
+
+			//execute command in focus page.
+			void ExecuteCommandInFocusPage(std::string command, const ParamsList& params);
+
+			//get focus_page of this shell.
+			inline ShellPageBase* focus_page() const
+			{
+				if (_dir_list.size() > 0)
+				{
+					return _page_table.at(_dir_list.back()).get();
+				}
+				return nullptr;
+			}
+
 			//global function
 			static inline GameShell* focus_game()
 			{
 				return _g_focus_game;
 			}
 
-			//print input tips.
-			static inline void InputTip(std::string tip = "")
+			//return true if the cmd is a shell command.
+			inline bool is_shell_command(std::string cmd) const
 			{
-				if (focus_game() != nullptr)
-				{
-					if (focus_game()->focus_page() != nullptr)
-					{
-						focus_game()->focus_page()->ShowPath();
-						if (tip != "")
-						{
-							std::cout << "/";
-						}
-						console::Cprintf(tip, console::GREEN);
-						std::cout << ": >> ";
-					}
-					else
-					{
-						console::Cprintf("ERROR: focus page not exist", console::PURPLE);
-					}
-				}
-				else
-				{
-					console::Cprintf("ERROR: focus game not exist", console::PURPLE);
-				}
+				return _shell_cmd.command_exist(cmd);
 			}
 
-			//get input line by string format.
-			static inline std::string GetInput()
-			{
-				char buffer[50];
-				std::cin.getline(buffer, 50);
-				return std::string(buffer);
-			}
-
-			//public function
-			GameShell(std::string name);
-
-			//copy constructor is disallowed.
-			GameShell(GameShell&) = delete;
-
+		public:
 			//get name of shell.
 			inline std::string name() const
 			{
 				return _name;
 			}
 
-			//get focus_page of this shell.
-			inline ShellPageBase* focus_page() const
-			{
-				return _focus_page;
-			}
-
-			//return true if the page name exist.
-			inline bool page_exist(std::string name) const
-			{
-				return _page_table.count(name) > 0;
-			}
-
-			//add new page to this shell.
-			inline void AddPage(std::string name, std::shared_ptr<ShellPageBase> new_page)
-			{
-				_page_table[name] = new_page;
-			}
-
-			//to be the focus.
-			inline void BeFocus()
-			{
-				_g_focus_game = this;
-			}
-
-			//run page.
-			inline void RunPage(std::string name, ShellPageBase* call_source = nullptr)
-			{
-				if (page_exist(name))
-				{
-					_page_table[name]->Run(call_source);
-				}
-				else
-				{
-					std::cerr << "page '" << name << "' not exist" << std::endl;
-				}
-			}
-
-
-		};
-
-		//Shell Page
-		template<typename datatype>
-		class ShellPage final :public ShellPageBase
-		{
-			friend class ShellCreator;
-		private:
-			std::map<std::string, std::function<void(datatype&)> > _func;			//dict of commands.
-			std::map<std::string, std::string> _des;								//dict of describes.
-			std::set<std::string> _child;											//dict of child pages
-			std::function<bool(std::string, datatype&)> _custom_command_check_func;	//custom command check func
-			datatype _data;															//data of the page.
-
-		private:
-			inline void ShellInit()
-			{
-				//add exit describe
-				AddDescript(g_SHELL_EXIT_COMMAND_STR, "return to previous menu.");
-
-				//add help command.
-				AddFunction(g_SHELL_HELP_COMMAND_STR, [&](datatype& data)->void {
-					std::cout << std::endl << ">> ";
-					console::Cprintf("[ COMMAND LIST ]\n\n", console::YELLOW);
-					for (auto command : _des)
-					{
-						std::cout << "   '";
-						console::Cprintf(command.first, console::RED);
-						std::cout << "'" << std::string(g_SHELL_MAX_COMMAND_LENGTH,' ').substr(0, g_SHELL_MAX_COMMAND_LENGTH - command.first.length()) 
-							<< command.second << std::endl;
-					}
-					std::cout << std::endl << std::endl;
-				}, "get command list");
-
-				//add clean command.
-				AddFunction(g_SHELL_CLEAN_COMMAND_STR, [&](datatype& data)->void {
-					this->CleanScreen();
-				}, "clean screen.");
-			}
-
-			//data operator
-			inline datatype& data()
-			{
-				return _data;
-			}
-
-			//return true if the func name exist
-			inline bool func_exist(std::string command) const
-			{
-				return _func.count(command) > 0;
-			}
-
-			//return true if the child page exist.
-			inline bool child_exist(std::string command) const
-			{
-				return _child.count(command) > 0;
-			}
-
-			//return true if the describe exist.
-			inline bool des_exist(std::string command) const
-			{
-				return _des.count(command) > 0;
-			}
-
-			//get func by name.
-			inline std::function<void(datatype&)> get_func(std::string command)
-			{
-				if (!func_exist(command))
-				{
-					std::cerr << "function '" << command << "' in page '" << name() << "'not exist" << std::endl;
-					console::SystemPause();
-				}
-				return _func[command];
-			}
-
-			//get describe by name.
-			inline std::string get_des(std::string command) const
-			{
-				if (!func_exist(command))
-				{
-					std::cerr << "descript '" << command << "' in page '" << name() << "'not exist" << std::endl;
-					console::SystemPause();
-				}
-				return _des.at(command);
-			}
-
-			//run page.
-			void Run(ShellPageBase* call_source) override
-			{
-				set_call_source(call_source);
-				BeFocus();
-				CleanScreen();
-
-				//excute constructor func.
-				_constructor_func();
-
-				for (;;)
-				{
-					/*
-					* command check order
-					* 1.return
-					* 2.function
-					* 3.child shell
-					* 4.extra command
-					*/
-					BeFocus();	//ensure this page is always the focus.
-					GameShell::InputTip();
-					std::string command;
-
-					//get command that is not empty.
-					for (;;)
-					{
-						command = GameShell::GetInput();
-						if (command != "")
-						{
-							break;
-						}
-					}
-
-					//return command
-					if (command == g_SHELL_EXIT_COMMAND_STR)
-					{
-						if (call_source != nullptr)
-						{
-							call_source->CleanScreen();
-						}
-						break;
-					}
-
-					//function command check
-					if (func_exist(command))
-					{
-						get_func(command)(_data);
-						continue;
-					}
-
-					//child shell check
-					if (child_exist(command))
-					{
-						belonging_shell()->RunPage(command, this);
-						continue;
-					}
-
-					//extra command check
-					if (_custom_command_check_func(command, _data))
-					{
-						continue;
-					}
-
-					//error
-					console::Cprintf("ERROR: ", console::PURPLE);
-					std::cout << "command not found." << std::endl;
-				}
-
-				_destructor_func();	//excute destructor func.
-			}
-
-			//curtail command if the length of command is out of max length.
-			inline std::string curtail_command(std::string command)
-			{
-				if (command.size() > g_SHELL_MAX_COMMAND_LENGTH)
-				{
-					return command.substr(0, g_SHELL_MAX_COMMAND_LENGTH);
-				}
-				return command;
-			}
-
-		public:
-			//default function.
-			ShellPage(GameShell* belonging_shell, std::string name) :
-				ShellPageBase(belonging_shell, name),
-				_custom_command_check_func([](std::string a, datatype& b)->bool {return false; })
-			{
-				ShellInit();
-			}
-
-			//create a new shell page.
-			ShellPage(GameShell* belonging_shell, std::string name, datatype data) :
-				ShellPageBase(belonging_shell, name),
-				_custom_command_check_func([](std::string a, datatype& b)->bool {return false; }),
-				_data(data)
-			{
-				ShellInit();
-			}
+			//public constructor function
+			GameShell(std::string name);
 
 			//copy constructor is disallowed.
-			ShellPage(ShellPage&) = delete;
+			GameShell(GameShell&) = delete;
 
-			//deconstor function, DO NOT EXECUTE ALONE.
-			~ShellPage()
+			//start from appointed page.
+			void StartFromPage(std::string name);
+
+			//enter page by name.
+			void EnterPage(std::string name);
+
+			//set info func for all pages
+			inline void SetDefaultInfoFunc(InfoFunc info_func)
 			{
-
+				_info_func = info_func;
 			}
 
-			//add child page of this page,the name page should exist in same shell and the name is also the command to enter this page.
-			inline void AddChildPage(std::string child_name, std::string des)
+			//create shell page, default data type is <int>
+			template<typename DataType = int>
+			page::ShellPage<DataType>* CreateShellPage(std::string page_name)
 			{
-				child_name = curtail_command(child_name);
-				if (child_name != name())
+				if (page_exist(page_name))
 				{
-					_des[child_name] = des;
-					_child.insert(child_name);
-				}
-				else
-				{
-					console::Cprintf("INIT ERROR: ", console::PURPLE);
-					console::Cprintf(" page ", console::GRAY);
-					console::Cprintf(name(), console::RED);
-					console::Cprintf(" add itself as child page!\n", console::GRAY);
+					console::ShowError("repeation of create page " + page_name);
 					console::SystemPause();
+					return nullptr;
 				}
+				std::shared_ptr<page::ShellPage<DataType>> ptr(new page::ShellPage<DataType>(this, page_name));
+				add_page(page_name, ptr);
+				ptr.get()->SetInfoFunc(_info_func);
+				return ptr.get();
 			}
 
-			//add a function that can be execute by command and is allowed to visit the data binded in this page.
-			inline void AddFunction(std::string command, std::function<void(datatype&)> func, std::string des)
+			//create shell page with initilized value, default data type is <int>
+			template<typename DataType, class... Types>
+			page::ShellPage<DataType>* CreateShellPage(std::string page_name, Types&&... args)
 			{
-				command = curtail_command(command);
-				_func[command] = func;
-				_des[command] = des;
-			}
-
-			//add/cover descript, the command should be added in other place.
-			inline void AddDescript(std::string command, std::string des)
-			{
-				command = curtail_command(command);
-				_des[command] = des;
-			}
-
-			//use a extend function to check and execute command, if the command is legal that the function should return 'true'.
-			inline void AddCustomCommandCheck(std::function<bool(std::string, datatype&)> func, std::string command, std::string des)
-			{
-				AddDescript(command, des);
-				_custom_command_check_func = func;
-			}
-
-			//add info function about this page, the func would be execute before the page works. 
-			inline void AddInfoFunc(std::function<void()> info_func)
-			{
-				set_info_func(info_func);
-			}
-
-			//add constructor func, it would be called when enter page. 
-			inline void AddConstructorFunc(std::function<void()> constructor_func)
-			{
-				set_constructor_func(constructor_func);
-			}
-
-			//add destructor func, it would be called when quit page.
-			inline void AddDestructorFunc(std::function<void()> destructor_func)
-			{
-				set_destructor_func(destructor_func);
+				if (page_exist(page_name))
+				{
+					console::ShowError("repeation of create page " + page_name);
+					console::SystemPause();
+					return nullptr;
+				}
+				std::shared_ptr<page::ShellPage<DataType>> ptr(new page::ShellPage<DataType>(this, page_name, std::forward<Types>(args)...));
+				add_page(page_name, ptr);
+				ptr.get()->SetInfoFunc(_info_func);
+				return ptr.get();
 			}
 		};
-
-		//Create Page
-		template<typename datatype>
-		ShellPage<datatype>* CreateShellPage(GameShell& belonging_shell, std::string name)
-		{
-			std::shared_ptr<ShellPage<datatype>> ptr(new ShellPage<datatype>(&belonging_shell, name));
-			belonging_shell.AddPage(name, ptr);
-			return ptr.get();
-		}
-
-		template<typename datatype>
-		ShellPage<datatype>* CreateShellPage(GameShell& belonging_shell, std::string name, datatype data)
-		{
-			std::shared_ptr<ShellPage<datatype>> ptr(new ShellPage<datatype>(&belonging_shell, name, data));
-			belonging_shell.AddPage(name, ptr);
-			return ptr.get();
-		}
 	}
 }

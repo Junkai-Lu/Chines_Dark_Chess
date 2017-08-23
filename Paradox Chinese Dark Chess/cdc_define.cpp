@@ -31,7 +31,7 @@ namespace chinese_dark_chess
 
 	namespace print
 	{
-		void piece(PieceType p)
+		void PrintPiece(PieceType p)
 		{
 			switch (p)
 			{
@@ -88,7 +88,7 @@ namespace chinese_dark_chess
 			}
 		}
 
-		void player(PlayerIndex p)
+		void PrintPlayer(PlayerIndex p)
 		{
 			switch (p)
 			{
@@ -103,15 +103,93 @@ namespace chinese_dark_chess
 			}
 		}
 
-		void action(const Action & act, const State& s)
+		void PrintAction(const Action & act, const State& s)
 		{
+			ActionData data = act.data(s);
+			switch (data.type)
+			{
+			case MOVE_ACTION:
+				PrintPiece(data.new_piece);
+				cout << "MOVE FROM " << data.source_loc.str() << "To " << data.dest_loc.str();
+				break;
+			case CAPTURE_ACTION:
+				PrintPiece(data.new_piece);
+				cout << "CAPTURE FROM " << data.source_loc.str() << "To " << data.dest_loc.str();
+				break;
+			case FLIPPING_ACTION:
+				cout << "FLIPPING PIECE IN " << data.source_loc.str();
+				break;
+			case FLIPPED_RESULT_ACTION:
+				PrintPiece(data.new_piece);
+				cout << "BE FIPPED IN " << data.source_loc.str();
+				break;
+			default:
+				break;
+			}
+		}
+
+		void PrintState(const State & s)
+		{
+			StateData data = s.data();
+			cout << endl << "    ";
+			for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+			{
+				cout << char(x + 'a') << "   ";
+			}
 			
-		}
+			cout << endl << "  ©³";
+			for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++) 
+			{
+				if (x != g_CDC_BOARD_WIDTH - 1)
+					cout << "©¥©×";
+				else
+					cout << "©¥©·" << endl;
+			}
+			for (size_t y = 0;y < g_CDC_BOARD_HEIGHT; y++)
+			{
+				cout << y + 1 << " ©§";
+				for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+				{
+					PrintPiece(data.piece(x, y));
+					cout << "©§";
+				}
+				std::cout << y + 1 << std::endl;
 
-		void state(const State & s)
-		{
-		}
+				if (y != g_CDC_BOARD_HEIGHT - 1)
+				{
+					cout << "  ©Ç";
+					for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+					{
+						if (x != g_CDC_BOARD_WIDTH - 1)
+						{
+							cout << "©¥©ï";
+						}
+						else
+						{
+							cout << "©¥©Ï" << endl;
+						}
+					}
+				}
+				else
+				{
+					cout << "  ©»";
+					for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+					{
+						if (x != g_CDC_BOARD_WIDTH - 1)
+							cout << "©¥©ß";
+						else
+							cout << "©¥©¿" << endl;
+					}
+				}
+			}
 
+			cout << "    ";
+			for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+			{
+				cout << char(x + 'a') << "   ";
+			}
+			std::cout << std::endl << std::endl;
+		}
 
 	}
 }

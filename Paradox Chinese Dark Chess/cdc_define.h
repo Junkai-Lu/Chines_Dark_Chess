@@ -96,6 +96,13 @@ namespace chinese_dark_chess
 		{
 			GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, index < g_CDC_MAX_LENGTH, "out of index");
 		}
+
+		std::string str() const
+		{
+			std::stringstream ss;
+			ss << "(" << x << "," << y << ")";
+			return ss.str();
+		}
 	};
 
 	/*
@@ -126,6 +133,18 @@ namespace chinese_dark_chess
 		PieceType _data[g_CDC_BOARD_WIDTH][g_CDC_BOARD_HEIGHT];
 
 	public:
+		//get piece by location
+		PieceType piece(Location loc)
+		{
+			return _data[loc.x][loc.y];
+		}
+
+		//get pice by x and y
+		PieceType piece(size_t x, size_t y)
+		{
+			return _data[x][y];
+		}
+
 		//to next by action data.
 		void to_next(const ActionData& action)
 		{
@@ -249,7 +268,40 @@ namespace chinese_dark_chess
 	};
 
 	//action set
-	using ActionSet = std::vector<Action>;
+	class ActionSet
+	{
+	private:
+		std::vector<Action> _actions;
+		
+	public:
+		ActionSet():
+			_actions()
+		{
+		}
+
+		//get the size of the ActionSet
+		size_t size() const
+		{
+			return _actions.size();
+		}
+
+		//push new action
+		void push(Action action)
+		{
+			_actions.push_back(action);
+		}
+
+		//get random action, return Action() if not action exist.
+		const Action& random_action() const
+		{
+			if (size() > 0)
+			{
+				size_t rnd = rand() % size();
+				return _actions[rnd];
+			}
+			GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, true, "empty action set for random action.");
+		}
+	};
 
 	//basic data struct of game state.
 	class State
@@ -330,21 +382,32 @@ namespace chinese_dark_chess
 			return RESULT_DRAW;
 		}
 
+		//get state data.
+		StateData data() const
+		{
+#ifdef CDC_DEBUG_INFO
+			return _debug_data;
+#else
+			StateData data;
+			data.update(*this);
+			return data;
+#endif
+		}
 	};
 
 	//print something
 	namespace print
 	{
 		//print piece
-		void piece(PieceType p);
+		void PrintPiece(PieceType p);
 
 		//print player.
-		void player(PlayerIndex p);
+		void PrintPlayer(PlayerIndex p);
 
 		//print action
-		void action(const Action& act, const State& s);
+		void PrintAction(const Action& act, const State& s);
 
 		//print state
-		void state(const State& s);
+		void PrintState(const State& s);
 	}
 }
