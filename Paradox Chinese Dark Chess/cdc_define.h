@@ -18,6 +18,8 @@ namespace chinese_dark_chess
 	constexpr const size_t g_CDC_BOARD_HEIGHT = 4;
 	constexpr const size_t g_CDC_MAX_LENGTH = g_CDC_BOARD_WIDTH * g_CDC_BOARD_HEIGHT;
 
+	extern size_t g_MOVEABLE_INDEX[32][4];
+
 	//index of players.
 	enum PlayerIndex : uint8_t
 	{
@@ -34,21 +36,22 @@ namespace chinese_dark_chess
 		//15 empty
 
 		PIECE_UNKNOWN = 0,
-		PIECE_RED_PAWN = 1,
-		PIECE_RED_CANNON = 2,
-		PIECE_RED_KNIGHT = 3,
-		PIECE_RED_ROOK = 4,
-		PIECE_RED_MINISTER = 5,
-		PIECE_RED_GUARD = 6,
-		PIECE_RED_KING = 7,
-		PIECE_BLACK_PAWN = 8,
-		PIECE_BLACK_CANNON = 9,
-		PIECE_BLACK_KNIGHT = 10,
-		PIECE_BLACK_ROOK = 11,
-		PIECE_BLACK_MINISTER = 12,
-		PIECE_BLACK_GUARD = 13,
-		PIECE_BLACK_KING = 14,
-		PIECE_EMPTY = 15
+		PIECE_UNDECIDED = 1,
+		PIECE_RED_PAWN = 2,
+		PIECE_RED_CANNON = 3,
+		PIECE_RED_KNIGHT = 4,
+		PIECE_RED_ROOK = 5,
+		PIECE_RED_MINISTER = 6,
+		PIECE_RED_GUARD = 7,
+		PIECE_RED_KING = 8,
+		PIECE_BLACK_PAWN = 9,
+		PIECE_BLACK_CANNON = 10,
+		PIECE_BLACK_KNIGHT = 11,
+		PIECE_BLACK_ROOK = 12,
+		PIECE_BLACK_MINISTER = 13,
+		PIECE_BLACK_GUARD = 14,
+		PIECE_BLACK_KING = 15,
+		PIECE_EMPTY = 16
 	};
 
 	//action types.
@@ -78,9 +81,6 @@ namespace chinese_dark_chess
 	//basic data struct of game state.
 	class State;
 
-	//move board for all locs.
-	extern BitBoard g_MOVE_BOARD[32];
-
 	//location.
 	struct Location
 	{
@@ -109,21 +109,33 @@ namespace chinese_dark_chess
 	};
 
 	/*
-	* ActionData is the details about one action.
+	* Action is the details about one action.
 	* piece would be moved from source location to destination location.
-	* if the action type is FLIPPING_ACTION, the new_piece is PIECE_UNKNOWN
+	* Action contains info about how to change the state:
+
+	* 1. MOVE_ACTION 
+	*	source != dest
+	*   piece != UNKNOWN
+	*
+	* 3. FLIPPING_ACTION
+	*	source == dest
+	*   piece == UNKONW
+	*
+	* 4. FLIPPED_RESULT_ACTION
+	*	source == dest
+	*   piece != UNKNOWN
 	*/
-	struct ActionData
+	struct Action
 	{
 		const ActionType	type;
-		const Location		source_loc;
-		const Location		dest_loc;
+		const size_t        source;
+		const size_t        dest;
 		const PieceType		new_piece;
 
-		ActionData(ActionType _type, Location _source_loc, Location _dest_loc, PieceType _new_piece):
+		Action(ActionType _type, size_t _source, size_t _dest, PieceType _new_piece):
 			type(_type),
-			source_loc(_source_loc),
-			dest_loc(_dest_loc),
+			source(_source),
+			dest(_dest),
 			new_piece(_new_piece)
 		{
 		}
@@ -149,77 +161,14 @@ namespace chinese_dark_chess
 		}
 
 		//to next by action data.
-		void to_next(const ActionData& action)
+		void to_next(const Action& action)
 		{
-			_data[action.source_loc.x][action.source_loc.y] = PIECE_EMPTY;
-			_data[action.dest_loc.x][action.dest_loc.y] = action.new_piece;
+			_data[action.source % 8][action.source /8] = PIECE_EMPTY;
+			_data[action.dest % 8][action.dest / 8] = action.new_piece;
 		}
 
 		//updata data by State.
 		void update(const State& state);
-	};
-
-	/*
-	* Action contains info about how to change the state:
-	* 1. MOVE_ACTION 
-	*	move_index: not 0 
-	*	move_board: new board after move
-	*	capture_index = move_index 
-	*	capture_board = move_board
-	*
-	* 2. CAPTURE_ACTION
-	*	move_index: not 0 
-	*	move_board: new board after capture
-	*	capture_index: not 0
-	*	capture_board: new board after capture
-	*
-	* 3. FLIPPING_ACTION
-	*	move index:0 
-	*	move_board: new board without flipping piece.
-	*	capture_index = move_index 
-	*	capture_board = move_board
-	*
-	* 4. FLIPPED_RESULT_ACTION
-	*	move index:0 
-	*	move_board: new board without flipped piece.
-	*	capture_index : not 0 
-	*	capture_board = new board with flipped piece.
-	*/
-	struct Action
-	{
-		const PieceType	move_index;		//piece index, from 0 to 14
-		const BitBoard	move_board;		//the new board of moved piece rank.
-		const PieceType	capture_index;	//the index of captured index, no capture if the value is 0.
-		const BitBoard	capture_board;	//the new board for captured piece rank.
-
-		Action(PieceType _move_index, BitBoard _move_board, PieceType _cap_index, BitBoard _cap_board):
-			move_index(_move_index),
-			move_board(_move_board),
-			capture_index(_cap_index),
-			capture_board(_cap_board)
-		{
-		}
-
-		//get action type
-		ActionType type() const
-		{
-			if (move_index != 0)
-			{
-				if (move_index == capture_index)
-				{
-					return MOVE_ACTION;
-				}
-				return CAPTURE_ACTION;
-			}
-			if (capture_index != 0)
-			{
-				return FLIPPED_RESULT_ACTION;
-			}
-			return FLIPPING_ACTION;
-		}
-
-		//get data 
-		ActionData data(const State& s) const;
 	};
 
 	//action set
@@ -255,6 +204,12 @@ namespace chinese_dark_chess
 				return _actions[rnd];
 			}
 			GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, true, "empty action set for random action.");
+		}
+
+		//get ref of action by index.
+		const Action& action(size_t index) const
+		{
+			return _actions[index];
 		}
 	};
 
@@ -294,60 +249,14 @@ namespace chinese_dark_chess
 		}
 
 		//to next state by an action.
-		inline void to_next(const Action& action) 
-		{
-			GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, action.type() != FLIPPING_ACTION, "excute flipping act");
-
-			_pieces[action.capture_index] = action.capture_board;
-			_pieces[action.move_index] = action.capture_board;
-
-#ifdef CDC_DEBUG_INFO
-			_debug_data.to_next(action.data(*this));
-#endif
-		}
+		void to_next(const Action& action);
 
 		//get result of the state.
-		Result get_result() const
-		{
-			if (_no_capture_count > 20)
-			{
-				return RESULT_DRAW;
-			}
-			bool no_red =
-				_hidden_pieces[PLAYER_RED].is_empty() &&
-				_pieces[1].none() &&
-				_pieces[2].none() &&
-				_pieces[3].none() &&
-				_pieces[4].none() &&
-				_pieces[5].none() &&
-				_pieces[6].none() &&
-				_pieces[7].none();
-			if (no_red) { return RESUKT_BLACK_WIN; }
+		Result get_result() const;
 
-			bool no_black =
-				_hidden_pieces[PLAYER_BLACK].is_empty() &&
-				_pieces[8].none() &&
-				_pieces[9].none() &&
-				_pieces[10].none() &&
-				_pieces[11].none() &&
-				_pieces[12].none() &&
-				_pieces[13].none() &&
-				_pieces[14].none();
-			if (no_black) { return RESULT_RED_WIN; }
-			return RESULT_DRAW;
-		}
+		BitBoard get_piece_board() const;
 
-		BitBoard get_piece_board() const
-		{
-			BitBoard board = _pieces[0];
-			for (size_t i = 1; i < 15; i++)
-			{
-				board |= _pieces[i];
-			}
-			return board;
-		}
-
-		BitBoard get_empty_piece_board() const
+		inline BitBoard get_empty_piece_board() const
 		{
 			return (get_piece_board().operator~()) & BitBoard(0x0000FFFF);
 		}

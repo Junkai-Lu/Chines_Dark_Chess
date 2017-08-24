@@ -6,6 +6,42 @@ using std::endl;
 
 namespace chinese_dark_chess
 {
+	//global variable.
+	size_t g_MOVEABLE_INDEX[32][4] = {
+		{ 63,1,63,8 },
+		{ 0,2,63,9 },
+		{ 1,3,63,10 },
+		{ 2,4,63,11 },
+		{ 3,5,63,12 },
+		{ 4,6,63,13 },
+		{ 5,7,63,14 },
+		{ 6,63,63,15 },
+		{ 63,9,0,16 },
+		{ 8,10,1,17 },
+		{ 9,11,2,18 },
+		{ 10,12,3,19 },
+		{ 11,13,4,20 },
+		{ 12,14,5,21 },
+		{ 13,15,6,22 },
+		{ 14,63,7,23 },
+		{ 63,17,8,24 },
+		{ 16,18,9,25 },
+		{ 17,19,10,26 },
+		{ 18,20,11,27 },
+		{ 19,21,12,28 },
+		{ 20,22,13,29 },
+		{ 21,23,14,30 },
+		{ 22,63,15,31 },
+		{ 63,25,16,63 },
+		{ 24,26,17,63 },
+		{ 25,27,18,63 },
+		{ 26,28,19,63 },
+		{ 27,29,20,63 },
+		{ 28,30,21,63 },
+		{ 29,31,22,63 },
+		{ 30,63,23,63 }
+	};
+
 	//update state data
 	void StateData::update(const State & state)
 	{
@@ -29,89 +65,65 @@ namespace chinese_dark_chess
 		}
 	}
 
-	BitBoard g_MOVE_BOARD[32] = {
-		BitBoard(258),
-		BitBoard(517),
-		BitBoard(1034),
-		BitBoard(2068),
-		BitBoard(4136),
-		BitBoard(8272),
-		BitBoard(16544),
-		BitBoard(32832),
-		BitBoard(66049),
-		BitBoard(132354),
-		BitBoard(264708),
-		BitBoard(529416),
-		BitBoard(1058832),
-		BitBoard(2117664),
-		BitBoard(4235328),
-		BitBoard(8405120),
-		BitBoard(16908544),
-		BitBoard(33882624),
-		BitBoard(67765248),
-		BitBoard(135530496),
-		BitBoard(271060992),
-		BitBoard(542121984),
-		BitBoard(1084243968),
-		BitBoard(2151710720),
-		BitBoard(33619968),
-		BitBoard(84017152),
-		BitBoard(168034304),
-		BitBoard(336068608),
-		BitBoard(672137216),
-		BitBoard(1344274432),
-		BitBoard(2688548864),
-		BitBoard(1082130432)
-	};
+	//to next state.
+	void State::to_next(const Action & action)
+	{	
+		GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, action.type != FLIPPING_ACTION, "excute flipping act");
+		BitBoard clear(0xFFFFFFFF);
+		clear.reset(action.source);
+		clear.reset(action.dest);
 
+		for (size_t i = 0; i < 15; i++)
+			_pieces[i] &= clear;
 
-	ActionData Action::data(const State & s) const
-	{
-		auto GetIndex = [](const BitBoard& board)->size_t {
-			for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
-			{
-				if (board[i])
-				{
-					return i;
-				}
-			}
-			return g_CDC_MAX_LENGTH;
-		};
-		auto action_type = type();
-		if (action_type == MOVE_ACTION)
-		{
-			//from A to B
-			BitBoard a_and_b = move_board ^ s.piece_board(move_index);
-			BitBoard a = a_and_b & s.piece_board(move_index);//source
-			BitBoard b = a_and_b & move_board;//destination
-			size_t source = GetIndex(a);
-			size_t destination = GetIndex(b);
-			return ActionData(MOVE_ACTION, Location(source), Location(destination), move_index);
-		}
-		if (action_type == CAPTURE_ACTION)
-		{
-			//from A to B
-			BitBoard a_and_b = move_board ^ s.piece_board(move_index);
-			BitBoard b = (~capture_board) & s.piece_board(capture_index);
-			BitBoard a = a_and_b ^ b;
-			size_t source = GetIndex(a);
-			size_t destination = GetIndex(b);
-			return ActionData(CAPTURE_ACTION, Location(source), Location(destination), move_index);
-		}
-		if (action_type == FLIPPING_ACTION)
-		{
-			//from A
-			BitBoard a = move_board ^ s.piece_board(move_index);
-			size_t source = GetIndex(a);
-			return ActionData(FLIPPING_ACTION, Location(source), Location(source), move_index);
-		}
-
-		//flipped result action
-		BitBoard a = move_board ^ s.piece_board(move_index);
-		size_t source = GetIndex(a);
-		return ActionData(FLIPPED_RESULT_ACTION, Location(source), Location(source), capture_index);
+#ifdef CDC_DEBUG_INFO
+		_debug_data.to_next(action);
+#endif
 	}
 
+	//get result.
+	Result State::get_result() const
+	{
+		if (_no_capture_count > 20)
+		{
+			return RESULT_DRAW;
+		}
+		bool no_red =
+			_hidden_pieces[PLAYER_RED].is_empty() &&
+			_pieces[1].none() &&
+			_pieces[2].none() &&
+			_pieces[3].none() &&
+			_pieces[4].none() &&
+			_pieces[5].none() &&
+			_pieces[6].none() &&
+			_pieces[7].none();
+		if (no_red) { return RESUKT_BLACK_WIN; }
+
+		bool no_black =
+			_hidden_pieces[PLAYER_BLACK].is_empty() &&
+			_pieces[8].none() &&
+			_pieces[9].none() &&
+			_pieces[10].none() &&
+			_pieces[11].none() &&
+			_pieces[12].none() &&
+			_pieces[13].none() &&
+			_pieces[14].none();
+		if (no_black) { return RESULT_RED_WIN; }
+		return RESULT_DRAW;
+	}
+
+	//get piece board.
+	BitBoard State::get_piece_board() const
+	{
+		BitBoard board = _pieces[0];
+		for (size_t i = 1; i < 15; i++)
+		{
+			board |= _pieces[i];
+		}
+		return board;
+	}
+
+	//print board.
 	namespace print
 	{
 		void PrintPiece(PieceType p)
@@ -163,6 +175,9 @@ namespace chinese_dark_chess
 			case PIECE_BLACK_KING:
 				console::Cprintf("½«", console::BLUE);
 				break;
+			case PIECE_UNDECIDED:
+				console::Cprintf("??", console::DEFAULT);
+				break;
 			case PIECE_EMPTY:
 				console::Cprintf("  ", console::DEFAULT);
 				break;
@@ -188,23 +203,22 @@ namespace chinese_dark_chess
 
 		void PrintAction(const Action & act, const State& s)
 		{
-			ActionData data = act.data(s);
-			switch (data.type)
+			switch (act.type)
 			{
 			case MOVE_ACTION:
-				PrintPiece(data.new_piece);
-				cout << "MOVE FROM " << data.source_loc.str() << "To " << data.dest_loc.str();
+				PrintPiece(act.new_piece);
+				cout << "MOVE FROM " << Location(act.source).str() << "To " << Location(act.dest).str();
 				break;
 			case CAPTURE_ACTION:
-				PrintPiece(data.new_piece);
-				cout << "CAPTURE FROM " << data.source_loc.str() << "To " << data.dest_loc.str();
+				PrintPiece(act.new_piece);
+				cout << "CAPTURE FROM " << Location(act.source).str() << "To " << Location(act.dest).str();
 				break;
 			case FLIPPING_ACTION:
-				cout << "FLIPPING PIECE IN " << data.source_loc.str();
+				cout << "FLIPPING PIECE IN " << Location(act.source).str();
 				break;
 			case FLIPPED_RESULT_ACTION:
-				PrintPiece(data.new_piece);
-				cout << "BE FIPPED IN " << data.source_loc.str();
+				PrintPiece(act.new_piece);
+				cout << "BE FIPPED IN " << Location(act.source).str();
 				break;
 			default:
 				break;
@@ -276,5 +290,3 @@ namespace chinese_dark_chess
 
 	}
 }
-
-

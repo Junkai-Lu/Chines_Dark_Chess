@@ -1,4 +1,5 @@
 #include "cdc_define.h"
+#include "cdc_policy.hpp"
 
 using namespace gadt;
 using chinese_dark_chess::State;
@@ -20,31 +21,39 @@ void ShellDefine()
 	root->AddChildPage("game", "the game");
 	root->AddFunction("move", "get move board", []() {
 		std::ofstream ofs("move.txt");
+		ofs << "{" << std::endl;
 		for (size_t i = 0; i < 32; i++)
 		{
-			chinese_dark_chess::BitBoard temp;
+			ofs << "{";
+			//chinese_dark_chess::BitBoard temp;
 			if (i % 8 != 0)
 			{
-				temp.set(i - 1);
+				ofs << i - 1 << ",";
 			}
+			else { ofs << 63 << ","; }
 			if (i % 8 != 7)
 			{
-				temp.set(i + 1);
+				ofs << i + 1 << ",";
 			}
+			else { ofs << 63 << ","; }
 			if (i > 7)
 			{
-				temp.set(i - 8);
+				ofs << i - 8 << ",";
 			}
+			else { ofs << 63 << ","; }
 			if (i < 24)
 			{
-				temp.set(i + 8);
+				ofs << i + 8 << "}," << std::endl;
 			}
-			ofs << "BitBoard(" << temp.to_ullong() << ")," << std::endl;
+			else { ofs << 63 << "}," << std::endl; }
 		}
 	});
 
 	game->AddFunction("show", "show state",[](State& state)->void{chinese_dark_chess::print::PrintState(state); });
-	game->AddFunction("change", "change piece", [](State& state)->void {
+	game->AddFunction("change", "change piece", [](State& state)->void {});
+	game->AddFunction("all", "show all possible moves", [](State& state)->void {
+		chinese_dark_chess::ActionGenerator action(state);
+		action.print();
 	});
 
 	cdc.StartFromPage("root");
