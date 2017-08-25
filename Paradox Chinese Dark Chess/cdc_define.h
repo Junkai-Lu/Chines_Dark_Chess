@@ -14,6 +14,7 @@
 namespace chinese_dark_chess
 {
 	constexpr const bool g_CDC_DEFINE_CHECK = true;
+	constexpr const size_t g_CDC_BITBOARD_SIZE = 17;
 	constexpr const size_t g_CDC_BOARD_WIDTH = 8;
 	constexpr const size_t g_CDC_BOARD_HEIGHT = 4;
 	constexpr const size_t g_CDC_MAX_LENGTH = g_CDC_BOARD_WIDTH * g_CDC_BOARD_HEIGHT;
@@ -31,10 +32,10 @@ namespace chinese_dark_chess
 	enum PieceType : uint8_t
 	{
 		//0 unknown
-		//1~7 red pieces
-		//8~14 black pieces
-		//15 empty
-
+		//1 unknown
+		//2~8 red pieces
+		//9~15 black pieces
+		//16 empty
 		PIECE_UNKNOWN = 0,
 		PIECE_UNDECIDED = 1,
 		PIECE_RED_PAWN = 2,
@@ -51,7 +52,7 @@ namespace chinese_dark_chess
 		PIECE_BLACK_MINISTER = 13,
 		PIECE_BLACK_GUARD = 14,
 		PIECE_BLACK_KING = 15,
-		PIECE_EMPTY = 16
+		PIECE_EMPTY = 16,
 	};
 
 	//action types.
@@ -217,35 +218,68 @@ namespace chinese_dark_chess
 	class State
 	{
 	private:
-		BitBoard	_pieces[15];		//pieces.
-		PieceArray	_hidden_pieces[2];  //pieces that still no be flipped.
-		PlayerIndex _last_player;		//index of last moved player.
-		size_t		_no_capture_count;	//the count of no capture, draw if the value more than 20.
+		BitBoard	_pieces[g_CDC_BITBOARD_SIZE];	//pieces.
+		PieceArray	_hidden_pieces;					//pieces that still no be flipped.
+		PlayerIndex _last_player;					//index of last moved player.
+		size_t		_no_capture_count;				//the count of no capture, draw if the value more than 20.
 
 #ifdef CDC_DEBUG_INFO
-		StateData	_debug_data;		//debug data
+		StateData	_debug_data;					//debug data
 #endif
 
 	public:
 		template <typename T>const BitBoard& piece_board(T id) const { return _pieces[id]; }
-		const PieceArray& hidden_pieces(PlayerIndex index) const { return _hidden_pieces[index]; }
+		const PieceArray& hidden_pieces() const { return _hidden_pieces; }
 		PlayerIndex last_player() const { return _last_player; }
 		size_t no_capture_count() const { return _no_capture_count; }
 
 	public:
-		
+
 		//default constructor, generate a new state.
 		State():
 			_hidden_pieces
-		{ 
-				{1,1,1,1,1,2,2,3,3,4,4,5,5,6,6,7},
-				{8,8,8,8,8,9,9,10,10,11,11,12,12,13,13,14} 
+		{
+			(uint8_t)(uint8_t)PIECE_RED_PAWN,(uint8_t)PIECE_RED_PAWN,(uint8_t)PIECE_RED_PAWN,(uint8_t)PIECE_RED_PAWN,(uint8_t)PIECE_RED_PAWN,
+			(uint8_t)PIECE_RED_CANNON,(uint8_t)PIECE_RED_CANNON,
+			(uint8_t)PIECE_RED_KNIGHT,(uint8_t)PIECE_RED_KNIGHT,
+			(uint8_t)PIECE_RED_ROOK,(uint8_t)PIECE_RED_ROOK,
+			(uint8_t)PIECE_RED_MINISTER,(uint8_t)PIECE_RED_MINISTER,
+			(uint8_t)PIECE_RED_GUARD,(uint8_t)PIECE_RED_GUARD,
+			(uint8_t)PIECE_RED_KING,
+			(uint8_t)PIECE_BLACK_PAWN,(uint8_t)PIECE_BLACK_PAWN,(uint8_t)PIECE_BLACK_PAWN,(uint8_t)PIECE_BLACK_PAWN,(uint8_t)PIECE_BLACK_PAWN,
+			(uint8_t)PIECE_BLACK_CANNON,(uint8_t)PIECE_BLACK_CANNON,
+			(uint8_t)PIECE_BLACK_KNIGHT,(uint8_t)PIECE_BLACK_KNIGHT,
+			(uint8_t)PIECE_BLACK_ROOK,(uint8_t)PIECE_BLACK_ROOK,
+			(uint8_t)PIECE_BLACK_MINISTER,(uint8_t)PIECE_BLACK_MINISTER,
+			(uint8_t)PIECE_BLACK_GUARD,(uint8_t)PIECE_BLACK_GUARD,
+			(uint8_t)PIECE_BLACK_KING
 		},
 			_last_player(PLAYER_RED),
 			_no_capture_count(0)
 		{
-			_pieces[0] = BitBoard(4294967295);
+			_pieces[PIECE_UNKNOWN] = BitBoard(4294967295);
 			_debug_data.update(*this);
+		}
+
+		//return true if any undecided piece exist.
+		inline bool exist_undecided_piece() const
+		{
+			return _pieces[PIECE_UNDECIDED].any();
+		}
+
+		//return true if the player have hidden pieces.
+		inline bool exist_hidden_piece(PlayerIndex player) const
+		{
+			PieceType min = player == PLAYER_RED ? PIECE_RED_PAWN : PIECE_BLACK_PAWN;
+			PieceType max = player == PLAYER_RED ? PIECE_RED_KING : PIECE_BLACK_KING;
+			for (size_t i = 0; i < _hidden_pieces.length(); i++)
+			{
+				if (_hidden_pieces[i] >= min && _hidden_pieces[i] <= max)
+				{
+					return true;
+				}
+			}
+			return false;
 		}
 
 		//to next state by an action.
@@ -254,11 +288,16 @@ namespace chinese_dark_chess
 		//get result of the state.
 		Result get_result() const;
 
-		BitBoard get_piece_board() const;
+		//get all exist piece board
+		inline BitBoard get_exist_piece_board() const
+		{
+			return ~(_pieces[PIECE_EMPTY]);
+		}
 
+		//get empty piece board.
 		inline BitBoard get_empty_piece_board() const
 		{
-			return (get_piece_board().operator~()) & BitBoard(0x0000FFFF);
+			return _pieces[PIECE_EMPTY];
 		}
 
 		//get state data.
@@ -272,6 +311,26 @@ namespace chinese_dark_chess
 			return data;
 #endif
 		}
+
+		//return true if any undecided piece been changed.
+		inline bool CheckUndecidedPiece()
+		{
+			if (_pieces[PIECE_UNDECIDED].any())
+			{
+				GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, _hidden_pieces.length() == 0, "do not have any hidden piece.");
+				for (size_t i = 0; i < 32; i++)
+				{
+					if (_pieces[PIECE_UNDECIDED][i] == true)
+					{
+						_pieces[PIECE_UNDECIDED].reset(i);
+						PieceType piece = (PieceType)_hidden_pieces.draw_and_remove_value();
+						_pieces[piece].set(i);
+					}
+				}
+				return true;
+			}
+			return false;
+		}
 	};
 
 	//print something
@@ -284,7 +343,7 @@ namespace chinese_dark_chess
 		void PrintPlayer(PlayerIndex p);
 
 		//print action
-		void PrintAction(const Action& act, const State& s);
+		void PrintAction(const Action& act);
 
 		//print state
 		void PrintState(const State& s);

@@ -2,7 +2,8 @@
 #include "cdc_policy.hpp"
 
 using namespace gadt;
-using chinese_dark_chess::State;
+using namespace chinese_dark_chess;
+
 
 void ShellDefine()
 {
@@ -17,7 +18,7 @@ void ShellDefine()
 		console::Cprintf("=============================================\n\n", console::GRAY);
 	});
 	auto* root = cdc.CreateShellPage("root");
-	auto* game = cdc.CreateShellPage<chinese_dark_chess::State>("game");
+	auto* game = cdc.CreateShellPage<State>("game");
 	root->AddChildPage("game", "the game");
 	root->AddFunction("move", "get move board", []() {
 		std::ofstream ofs("move.txt");
@@ -49,11 +50,17 @@ void ShellDefine()
 		}
 	});
 
-	game->AddFunction("show", "show state",[](State& state)->void{chinese_dark_chess::print::PrintState(state); });
+	game->AddFunction("show", "show state",[](State& state)->void{print::PrintState(state); });
 	game->AddFunction("change", "change piece", [](State& state)->void {});
 	game->AddFunction("all", "show all possible moves", [](State& state)->void {
-		chinese_dark_chess::ActionGenerator action(state);
+		ActionGenerator action(state);
 		action.print();
+	});
+	game->AddFunction("random", "take random action", [](State& state) {
+		ActionGenerator all_action(state);
+		auto act = all_action.random_action();
+		print::PrintAction(act);
+		state.to_next(act);
 	});
 
 	cdc.StartFromPage("root");

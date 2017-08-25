@@ -52,7 +52,7 @@ namespace chinese_dark_chess
 				_data[x][y] = PIECE_EMPTY;
 			}
 		}
-		for (uint8_t piece_id = 0; piece_id < 15; piece_id++)
+		for (uint8_t piece_id = PIECE_UNKNOWN; piece_id < PIECE_EMPTY; piece_id++)
 		{
 			const BitBoard& board = state.piece_board(static_cast<PieceType>(piece_id));
 			for (size_t index = 0; index < g_CDC_MAX_LENGTH; index++)
@@ -73,7 +73,10 @@ namespace chinese_dark_chess
 		clear.reset(action.source);
 		clear.reset(action.dest);
 
-		for (size_t i = 0; i < 15; i++)
+		_pieces[PIECE_EMPTY].reset(action.source);
+		_pieces[PIECE_EMPTY].set(action.dest);
+
+		for (size_t i = PIECE_UNKNOWN; i < PIECE_EMPTY; i++)
 			_pieces[i] &= clear;
 
 #ifdef CDC_DEBUG_INFO
@@ -89,38 +92,27 @@ namespace chinese_dark_chess
 			return RESULT_DRAW;
 		}
 		bool no_red =
-			_hidden_pieces[PLAYER_RED].is_empty() &&
-			_pieces[1].none() &&
-			_pieces[2].none() &&
-			_pieces[3].none() &&
-			_pieces[4].none() &&
-			_pieces[5].none() &&
-			_pieces[6].none() &&
-			_pieces[7].none();
+			!exist_hidden_piece(PLAYER_RED) &&
+			_pieces[PIECE_RED_PAWN].none() &&
+			_pieces[PIECE_RED_CANNON].none() &&
+			_pieces[PIECE_RED_KNIGHT].none() &&
+			_pieces[PIECE_RED_ROOK].none() &&
+			_pieces[PIECE_RED_MINISTER].none() &&
+			_pieces[PIECE_RED_GUARD].none() &&
+			_pieces[PIECE_RED_KING].none();
 		if (no_red) { return RESUKT_BLACK_WIN; }
 
 		bool no_black =
-			_hidden_pieces[PLAYER_BLACK].is_empty() &&
-			_pieces[8].none() &&
-			_pieces[9].none() &&
-			_pieces[10].none() &&
-			_pieces[11].none() &&
-			_pieces[12].none() &&
-			_pieces[13].none() &&
-			_pieces[14].none();
+			!exist_hidden_piece(PLAYER_BLACK) &&
+			_pieces[PIECE_BLACK_PAWN].none() &&
+			_pieces[PIECE_BLACK_CANNON].none() &&
+			_pieces[PIECE_BLACK_KNIGHT].none() &&
+			_pieces[PIECE_BLACK_ROOK].none() &&
+			_pieces[PIECE_BLACK_MINISTER].none() &&
+			_pieces[PIECE_BLACK_GUARD].none() &&
+			_pieces[PIECE_BLACK_KING].none();
 		if (no_black) { return RESULT_RED_WIN; }
-		return RESULT_DRAW;
-	}
-
-	//get piece board.
-	BitBoard State::get_piece_board() const
-	{
-		BitBoard board = _pieces[0];
-		for (size_t i = 1; i < 15; i++)
-		{
-			board |= _pieces[i];
-		}
-		return board;
+		return RESULT_UNFINISH;
 	}
 
 	//print board.
@@ -201,7 +193,7 @@ namespace chinese_dark_chess
 			}
 		}
 
-		void PrintAction(const Action & act, const State& s)
+		void PrintAction(const Action & act)
 		{
 			switch (act.type)
 			{

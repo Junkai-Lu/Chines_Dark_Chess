@@ -20,7 +20,7 @@ namespace chinese_dark_chess
 			_action_set.push(action);
 		}
 
-		void GennerateAllMoveAction()
+		void GenerateAllMoveAction()
 		{
 			BitBoard empty_board = _state.get_empty_piece_board();
 			//get all allowed move
@@ -43,7 +43,7 @@ namespace chinese_dark_chess
 			}
 		}
 
-		void GennerateAllCaptureAction()
+		void GenerateAllCaptureAction()
 		{
 			//get all capture action.
 			
@@ -102,7 +102,7 @@ namespace chinese_dark_chess
 			}
 		}
 
-		void GennerateAllFlippingAction()
+		void GenerateAllFlippingAction()
 		{
 			if (_state.piece_board(0).any())
 			{
@@ -117,12 +117,17 @@ namespace chinese_dark_chess
 			}
 		}
 
-		void GennerateAllAction()
+		void GenerateAllAction()
 		{
 			//存在未确定的棋子。
 			GennerateAllMoveAction();
 			GennerateAllCaptureAction();
 			GennerateAllFlippingAction();
+		}
+
+		void GenerateAllFilpedResultAction()
+		{
+
 		}
 
 	public:
