@@ -259,6 +259,12 @@ namespace gadt
 				delete_memory();
 			}
 
+			//return the value of _is_debug.
+			constexpr inline bool is_debug() const
+			{
+				return _is_debug;
+			}
+
 		public:
 			//constructor function with allocation.
 			Allocator(size_t count) :
@@ -340,10 +346,22 @@ namespace gadt
 				return _available_index.size();
 			}
 
+			//return size of the allocator.
+			inline size_t size() const
+			{
+				return _count - _available_index.size();
+			}
+
 			//return true if there is not available space in this allocator.
 			inline bool is_full() const
 			{
 				return _available_index.size() == 0;
+			}
+
+			//return true if this allocator is empty.
+			inline bool is_empty() const
+			{
+				return _available_index.size() == _count;
 			}
 
 			//flush all datas in the allocator.
@@ -356,7 +374,7 @@ namespace gadt
 					{
 						destory_by_index(i);
 					}
-					_available_index.push(_fir_element + i);
+					//_available_index.push(ptr_to_index(_fir_element + i));
 				}
 			}
 
@@ -368,11 +386,7 @@ namespace gadt
 				return ss.str();
 			}
 
-			//return the value of _is_debug.
-			constexpr inline bool is_debug() const
-			{
-				return _is_debug;
-			}
+			
 		};
 
 		/*
@@ -546,6 +560,290 @@ namespace gadt
 			inline node_pointer end() const { return _last_node; }
 		};
 
-		
+		template<typename T, bool _is_debug = false>
+		class LinearAllocator
+		{
+		private:
+			using pointer = T*;
+			using reference = T&;
+
+			static const size_t		_size = sizeof(T);
+			const size_t			_count;
+			pointer					_fir_element;
+			size_t					_length;
+
+		private:
+			//allocate memory
+			inline void alloc_memory(size_t count)
+			{
+				_fir_element = reinterpret_cast<T*>(calloc(count, _size));
+			}
+
+			//delete memory
+			inline void delete_memory()
+			{
+				//delete[] _fir_element;
+				::free(_fir_element);
+				_fir_element = nullptr;
+				_length = 0;
+			}
+
+			//return the value of _is_debug.
+			constexpr inline bool is_debug() const
+			{
+				return _is_debug;
+			}
+
+		public:
+			//constructor function with allocation.
+			LinearAllocator(size_t count) :
+				_count(count),
+				_fir_element(nullptr),
+				_length(0)
+			{
+				alloc_memory(count);
+			}
+
+			//copy constructor function.
+			LinearAllocator(const LinearAllocator& target) :
+				_count(target._count),
+				_fir_element(nullptr),
+				_length(0)
+			{
+				alloc_memory(_count);
+				for (size_t i = 0; i < _length; i++)
+				{
+					construct_next(*(target._fir_element + i));
+				}
+			}
+
+			//destructor function.
+			~LinearAllocator()
+			{
+				delete_memory();
+			}
+
+			//free space by ptr, return true if free successfully.
+			inline bool destory_last()
+			{
+				if (_length > 0)
+				{
+					pointer last = _fir_element + (_length - 1);
+					_length--;
+					last->~T();
+					return true;
+				}
+				return false;
+			}
+
+			//copy source object to a empty space and return the pointer, return nullptr if there are not available space.
+			template<class... Types>
+			pointer construct_next(Types&&... args)//T* constructor(const T& source)
+			{
+				if (is_full() == false)
+				{
+					pointer ptr = _fir_element + _length;
+					_length++;
+					ptr = new (ptr) T(std::forward<Types>(args)...);//placement new;
+					return ptr;
+				}
+				return nullptr;
+			}
+
+			//get first element.
+			pointer element(size_t index) const
+			{
+				GADT_CHECK_WARNING(is_debug(), index >= _length, "out of range");
+				return _fir_element + index;
+			}
+
+			//total size of alloc.
+			inline size_t total_size() const
+			{
+				return _count;
+			}
+
+			//remain size in the alloc.
+			inline size_t remain_size() const
+			{
+				return _count - _length;
+			}
+
+			//return size of the allocator.
+			inline size_t size() const
+			{
+				return _length;
+			}
+
+			//return true if there is not available space in this allocator.
+			inline bool is_full() const
+			{
+				return _count == _length;
+			}
+
+			//return true if this allocator is empty.
+			inline bool is_empty() const
+			{
+				return _length == 0;
+			}
+
+			//flush all datas in the allocator.
+			inline void flush()
+			{
+				while (destory_last()) {}
+			}
+
+			//get info as string format
+			inline std::string info() const
+			{
+				std::stringstream ss;
+				ss << "{count : " << _count << ", remain: " << remain_size() << "}";
+				return ss.str();
+			}
+
+			
+
+			pointer operator[](size_t index) const
+			{
+				return element(index);
+			}
+		};
+	}
+
+	namespace random
+	{
+		template<typename T, bool _is_debug = false>
+		class RandomPool
+		{
+		public:
+			template<typename T>
+			struct RandomPoolElement
+			{
+				const size_t weight;
+				const size_t lower_limit;
+				T data;
+
+				template<class... Types>
+				RandomPoolElement(size_t _weight, size_t _lower_limit, Types&&... args) :
+					weight(_weight),
+					lower_limit(_lower_limit),
+					data(std::forward<Types>(args)...)
+				{
+				}
+			};
+
+		private:
+			using pointer = T*;
+			using reference = T&;
+			using Element = RandomPoolElement<T>;
+			using Allocator = stl::LinearAllocator<Element, _is_debug>;
+
+		private:
+
+			Allocator	_ele_alloc;
+			size_t		_accumulated_range;
+
+		public:
+			//default constructor.
+			RandomPool(size_t max_size):
+				_ele_alloc(max_size),
+				_accumulated_range(0)
+			{
+			}
+
+			//constructor with init list.
+			RandomPool(size_t max_size, std::initializer_list<std::pair<size_t, T>> init_list) :
+				_ele_alloc(max_size),
+				_accumulated_range(0)
+			{
+				for (const std::pair<size_t, T>& pair : init_list)
+				{
+					add(pair.first, pair.second);
+				}
+			}
+
+			//clear all elements.
+			void clear()
+			{
+				_ele_alloc.flush();
+				_accumulated_range = 0;
+			}
+
+			//add new element by copy.
+			inline bool add(size_t weight, T data)
+			{
+				if (_ele_alloc.construct_next(weight, _accumulated_range, data))
+				{
+					_accumulated_range += weight;
+					return true;
+				}
+				return false;
+			}
+
+			//add new element by constructor.
+			template<class... Types>
+			inline bool add(size_t weight, Types&&... args)
+			{
+				if(_ele_alloc.construct_next(weight, _accumulated_range, args));
+				{
+					_accumulated_range += weight;
+					return true;
+				}
+				return false;
+			}
+
+			//get chance that element[index] be selected.
+			inline double get_chance(size_t index) const
+			{
+				if (index < _ele_alloc.size())
+				{
+					return double(_ele_alloc[index]->weight) / double(_accumulated_range);
+				}
+				return 0.0;
+			}
+
+			//get element reference by index.
+			inline const reference get_element(size_t index) const
+			{
+				return _ele_alloc[index]->data;
+			}
+
+			//get weight of element by index.
+			inline size_t get_weight(size_t index) const
+			{
+				if (index < _ele_alloc.size())
+				{
+					return _ele_alloc[index]->weight;
+				}
+				return 0;
+			}
+
+			//get random element.
+			inline const reference random() const
+			{
+				GADT_CHECK_WARNING(_is_debug, size() == 0, "random pool is empty.");
+				size_t rnd = rand() % _accumulated_range;
+				for (size_t i = 0; i < size(); i++)
+				{
+					if (_ele_alloc[i]->lower_limit >= rnd)
+					{
+						return _ele_alloc[i]->data;
+					}
+				}
+				GADT_CHECK_WARNING(_is_debug, true, "unsuccessful random pick up.");
+				return _ele_alloc[0]->data;
+			}
+
+			//get the size of the element.
+			inline size_t size() const
+			{
+				return _ele_alloc.size();
+			}
+
+			const reference operator[](size_t index)
+			{
+				return get_element(index);
+			}
+		};
 	}
 }

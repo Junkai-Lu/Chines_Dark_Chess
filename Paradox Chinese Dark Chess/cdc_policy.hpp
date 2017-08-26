@@ -4,14 +4,18 @@
 
 namespace chinese_dark_chess
 {
+	constexpr const bool g_CDC_POLICY_CHECK = true;
+
 	//action generator.
 	class ActionGenerator
 	{
 	private:
 		const State& _state;
+		const bool _exist_undecided;
 		const PieceType _self_pawn_id;
 		const PieceType _enemy_pawn_id;
 		ActionSet _action_set;
+		
 
 	private:
 		//添加动作
@@ -29,7 +33,7 @@ namespace chinese_dark_chess
 				uint8_t piece = (uint8_t)_self_pawn_id + p;
 				if (_state.piece_board(piece).any())
 				{
-					for (size_t i = 0; i < 32; i++)
+					for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
 					{
 						if (_state.piece_board(piece)[i] == true)
 						{
@@ -51,7 +55,7 @@ namespace chinese_dark_chess
 			BitBoard captureable_board = _state.piece_board(_enemy_pawn_id + 6);
 			if (_state.piece_board(_self_pawn_id).any())
 			{
-				for (size_t i = 0; i < 32; i++)
+				for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
 				{
 					if (_state.piece_board(_self_pawn_id)[i] == true)
 					{
@@ -70,7 +74,7 @@ namespace chinese_dark_chess
 				uint8_t piece = _self_pawn_id + i;
 				if (_state.piece_board(piece).any())
 				{
-					for (size_t i = 0; i < 32; i++)
+					for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
 					{
 						if (_state.piece_board(piece)[i] == true)
 						{
@@ -89,7 +93,7 @@ namespace chinese_dark_chess
 			PieceType king = PieceType(_self_pawn_id + 6);
 			if (_state.piece_board(king).any())
 			{
-				for (size_t i = 0; i < 32; i++)
+				for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
 				{
 					if (_state.piece_board(_self_pawn_id + 6)[i] == true)
 					{
@@ -106,12 +110,12 @@ namespace chinese_dark_chess
 		{
 			if (_state.piece_board(0).any())
 			{
-				for (size_t i = 0; i < 32; i++)
+				for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
 				{
 					//i为未翻开的棋子
 					if (_state.piece_board(0)[i] == true)
 					{
-						AddAction({ FLIPPING_ACTION, i, i, PIECE_UNKNOWN });
+						AddAction({ FLIPPING_ACTION, i, i, PIECE_UNDECIDED });
 					}
 				}
 			}
@@ -120,14 +124,34 @@ namespace chinese_dark_chess
 		void GenerateAllAction()
 		{
 			//存在未确定的棋子。
-			GennerateAllMoveAction();
-			GennerateAllCaptureAction();
-			GennerateAllFlippingAction();
+			GenerateAllMoveAction();
+			GenerateAllCaptureAction();
+			GenerateAllFlippingAction();
 		}
 
 		void GenerateAllFilpedResultAction()
 		{
+			//find piece location.
+			size_t loc = 100;
+			for (size_t i = 0; i < _state.piece_board(PIECE_UNDECIDED).upper_bound(); i++)
+			{
+				if (_state.piece_board(PIECE_UNDECIDED)[i] == true)
+				{
+					loc = i;
+					break;
+				}
+			}
+			GADT_CHECK_WARNING(g_CDC_POLICY_CHECK, loc == 100, "fail to find undecied piece");
 
+			//generate actions.
+			const HiddenPiece& hidden = _state.hidden_pieces();
+			for (size_t i = 0; i < hidden.upper_bound(); i++)
+			{
+				if (hidden[i] > 0)
+				{
+					_action_set.push(Action(FLIPPED_RESULT_ACTION, loc, loc, PieceType(i)), hidden[i]);
+				}
+			}
 		}
 
 	public:
@@ -135,16 +159,29 @@ namespace chinese_dark_chess
 		//default constructor
 		ActionGenerator(const State & state) :
 			_state(state),
+			_exist_undecided(state.exist_undecided_piece()),
 			_self_pawn_id(state.last_player() == PLAYER_RED ? PIECE_RED_PAWN : PIECE_BLACK_PAWN),
 			_enemy_pawn_id(state.last_player() == PLAYER_RED ? PIECE_BLACK_PAWN : PIECE_RED_PAWN),
-			_action_set()
+			_action_set(!state.exist_undecided_piece())
 		{
-			GennerateAllAction();
+			if (_exist_undecided)
+			{
+				GenerateAllFilpedResultAction();
+			}
+			else
+			{
+				GenerateAllAction();
+			}
 		}
 
 		//get random action
 		const Action& random_action() const
 		{
+			//如果存在未判定的棋子
+			if (_exist_undecided)
+			{
+
+			}
 			return _action_set.random_action();
 		}
 		
@@ -165,10 +202,25 @@ namespace chinese_dark_chess
 					{ gadt::console::IntergerToString(_action_set.action(i).type)},
 					{ gadt::console::IntergerToString(_action_set.action(i).source) },
 					{ gadt::console::IntergerToString(_action_set.action(i).dest) },
-					{ gadt::console::IntergerToString(_action_set.action(i).new_piece) }
+					{ gadt::console::IntergerToString(_action_set.action(i).piece) }
 				});
 			}
 			table.print();
+		}
+
+		size_t size() const
+		{
+			return _action_set.size();
+		}
+
+		const Action& action(size_t index)
+		{
+			return _action_set.action(index);
+		}
+
+		const Action& operator[](size_t index)
+		{
+			return action(index);
 		}
 	};
 }

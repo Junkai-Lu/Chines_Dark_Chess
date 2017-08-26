@@ -7,7 +7,7 @@ using std::endl;
 namespace chinese_dark_chess
 {
 	//global variable.
-	size_t g_MOVEABLE_INDEX[32][4] = {
+	size_t g_MOVEABLE_INDEX[g_CDC_MAX_LENGTH][4] = {
 		{ 63,1,63,8 },
 		{ 0,2,63,9 },
 		{ 1,3,63,10 },
@@ -69,16 +69,20 @@ namespace chinese_dark_chess
 	void State::to_next(const Action & action)
 	{	
 		GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, action.type != FLIPPING_ACTION, "excute flipping act");
-		BitBoard clear(0xFFFFFFFF);
+		BitBoard clear(0xFFFFFFFFFFFFFFFF);
 		clear.reset(action.source);
 		clear.reset(action.dest);
-
-		_pieces[PIECE_EMPTY].reset(action.source);
-		_pieces[PIECE_EMPTY].set(action.dest);
-
 		for (size_t i = PIECE_UNKNOWN; i < PIECE_EMPTY; i++)
 			_pieces[i] &= clear;
 
+		_pieces[PIECE_EMPTY].set(action.source);
+		_pieces[PIECE_EMPTY].reset(action.dest);
+		_pieces[action.piece].set(action.dest);
+
+		if (action.type == FLIPPED_RESULT_ACTION)
+		{
+			_hidden_pieces.decrease(action.piece);
+		}
 #ifdef CDC_DEBUG_INFO
 		_debug_data.to_next(action);
 #endif
@@ -198,18 +202,18 @@ namespace chinese_dark_chess
 			switch (act.type)
 			{
 			case MOVE_ACTION:
-				PrintPiece(act.new_piece);
+				PrintPiece(act.piece);
 				cout << "MOVE FROM " << Location(act.source).str() << "To " << Location(act.dest).str();
 				break;
 			case CAPTURE_ACTION:
-				PrintPiece(act.new_piece);
+				PrintPiece(act.piece);
 				cout << "CAPTURE FROM " << Location(act.source).str() << "To " << Location(act.dest).str();
 				break;
 			case FLIPPING_ACTION:
 				cout << "FLIPPING PIECE IN " << Location(act.source).str();
 				break;
 			case FLIPPED_RESULT_ACTION:
-				PrintPiece(act.new_piece);
+				PrintPiece(act.piece);
 				cout << "BE FIPPED IN " << Location(act.source).str();
 				break;
 			default:

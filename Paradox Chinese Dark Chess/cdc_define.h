@@ -14,12 +14,13 @@
 namespace chinese_dark_chess
 {
 	constexpr const bool g_CDC_DEFINE_CHECK = true;
+	constexpr const size_t g_CDC_MAX_ACTION_COUNT = 128;
 	constexpr const size_t g_CDC_BITBOARD_SIZE = 17;
 	constexpr const size_t g_CDC_BOARD_WIDTH = 8;
 	constexpr const size_t g_CDC_BOARD_HEIGHT = 4;
 	constexpr const size_t g_CDC_MAX_LENGTH = g_CDC_BOARD_WIDTH * g_CDC_BOARD_HEIGHT;
 
-	extern size_t g_MOVEABLE_INDEX[32][4];
+	extern size_t g_MOVEABLE_INDEX[g_CDC_MAX_LENGTH][4];
 
 	//index of players.
 	enum PlayerIndex : uint8_t
@@ -75,9 +76,7 @@ namespace chinese_dark_chess
 
 	//bitboard of the pieces.
 	using BitBoard = gadt::bitboard::BitBoard64;
-
-	//array of pieces.
-	using PieceArray = gadt::bitboard::ValueVector<g_CDC_MAX_LENGTH>;
+	using HiddenPiece = gadt::bitboard::BitPoker;
 	
 	//basic data struct of game state.
 	class State;
@@ -98,7 +97,7 @@ namespace chinese_dark_chess
 		template<typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
 		Location(T index):x(index % g_CDC_BOARD_WIDTH),y(index / g_CDC_BOARD_WIDTH)
 		{
-			GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, index < g_CDC_MAX_LENGTH, "out of index");
+			GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, index >= g_CDC_MAX_LENGTH, "out of index");
 		}
 
 		std::string str() const
@@ -131,13 +130,13 @@ namespace chinese_dark_chess
 		const ActionType	type;
 		const size_t        source;
 		const size_t        dest;
-		const PieceType		new_piece;
+		const PieceType		piece;
 
-		Action(ActionType _type, size_t _source, size_t _dest, PieceType _new_piece):
+		Action(ActionType _type, size_t _source, size_t _dest, PieceType _piece):
 			type(_type),
 			source(_source),
 			dest(_dest),
-			new_piece(_new_piece)
+			piece(_piece)
 		{
 		}
 	};
@@ -165,7 +164,7 @@ namespace chinese_dark_chess
 		void to_next(const Action& action)
 		{
 			_data[action.source % 8][action.source /8] = PIECE_EMPTY;
-			_data[action.dest % 8][action.dest / 8] = action.new_piece;
+			_data[action.dest % 8][action.dest / 8] = action.piece;
 		}
 
 		//updata data by State.
@@ -176,41 +175,45 @@ namespace chinese_dark_chess
 	class ActionSet
 	{
 	private:
-		std::vector<Action> _actions;
+		using ActionPool = gadt::random::RandomPool<Action>;
+		
+		ActionPool _action_pool;
+		bool _all_weight_equal;
 		
 	public:
-		ActionSet():
-			_actions()
+		ActionSet(bool all_weight_equal = true):
+			_action_pool(g_CDC_MAX_ACTION_COUNT)
 		{
 		}
 
 		//get the size of the ActionSet
 		size_t size() const
 		{
-			return _actions.size();
+			return _action_pool.size();
 		}
 
 		//push new action
-		void push(Action action)
+		void push(Action action, size_t weight = 1)
 		{
-			_actions.push_back(action);
+			_action_pool.add(weight, action);
 		}
 
 		//get random action, return Action() if not action exist.
 		const Action& random_action() const
 		{
-			if (size() > 0)
+			if (_all_weight_equal)
 			{
 				size_t rnd = rand() % size();
-				return _actions[rnd];
+				return _action_pool.get_element(rnd);
 			}
-			GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, true, "empty action set for random action.");
+			
+			return _action_pool.random();
 		}
 
 		//get ref of action by index.
 		const Action& action(size_t index) const
 		{
-			return _actions[index];
+			return _action_pool.get_element(index);
 		}
 	};
 
@@ -219,7 +222,7 @@ namespace chinese_dark_chess
 	{
 	private:
 		BitBoard	_pieces[g_CDC_BITBOARD_SIZE];	//pieces.
-		PieceArray	_hidden_pieces;					//pieces that still no be flipped.
+		HiddenPiece	_hidden_pieces;					//pieces that still no be flipped.
 		PlayerIndex _last_player;					//index of last moved player.
 		size_t		_no_capture_count;				//the count of no capture, draw if the value more than 20.
 
@@ -229,7 +232,7 @@ namespace chinese_dark_chess
 
 	public:
 		template <typename T>const BitBoard& piece_board(T id) const { return _pieces[id]; }
-		const PieceArray& hidden_pieces() const { return _hidden_pieces; }
+		const HiddenPiece& hidden_pieces() const { return _hidden_pieces; }
 		PlayerIndex last_player() const { return _last_player; }
 		size_t no_capture_count() const { return _no_capture_count; }
 
@@ -237,23 +240,7 @@ namespace chinese_dark_chess
 
 		//default constructor, generate a new state.
 		State():
-			_hidden_pieces
-		{
-			(uint8_t)(uint8_t)PIECE_RED_PAWN,(uint8_t)PIECE_RED_PAWN,(uint8_t)PIECE_RED_PAWN,(uint8_t)PIECE_RED_PAWN,(uint8_t)PIECE_RED_PAWN,
-			(uint8_t)PIECE_RED_CANNON,(uint8_t)PIECE_RED_CANNON,
-			(uint8_t)PIECE_RED_KNIGHT,(uint8_t)PIECE_RED_KNIGHT,
-			(uint8_t)PIECE_RED_ROOK,(uint8_t)PIECE_RED_ROOK,
-			(uint8_t)PIECE_RED_MINISTER,(uint8_t)PIECE_RED_MINISTER,
-			(uint8_t)PIECE_RED_GUARD,(uint8_t)PIECE_RED_GUARD,
-			(uint8_t)PIECE_RED_KING,
-			(uint8_t)PIECE_BLACK_PAWN,(uint8_t)PIECE_BLACK_PAWN,(uint8_t)PIECE_BLACK_PAWN,(uint8_t)PIECE_BLACK_PAWN,(uint8_t)PIECE_BLACK_PAWN,
-			(uint8_t)PIECE_BLACK_CANNON,(uint8_t)PIECE_BLACK_CANNON,
-			(uint8_t)PIECE_BLACK_KNIGHT,(uint8_t)PIECE_BLACK_KNIGHT,
-			(uint8_t)PIECE_BLACK_ROOK,(uint8_t)PIECE_BLACK_ROOK,
-			(uint8_t)PIECE_BLACK_MINISTER,(uint8_t)PIECE_BLACK_MINISTER,
-			(uint8_t)PIECE_BLACK_GUARD,(uint8_t)PIECE_BLACK_GUARD,
-			(uint8_t)PIECE_BLACK_KING
-		},
+			_hidden_pieces(1229783213125211392),
 			_last_player(PLAYER_RED),
 			_no_capture_count(0)
 		{
@@ -270,16 +257,9 @@ namespace chinese_dark_chess
 		//return true if the player have hidden pieces.
 		inline bool exist_hidden_piece(PlayerIndex player) const
 		{
-			PieceType min = player == PLAYER_RED ? PIECE_RED_PAWN : PIECE_BLACK_PAWN;
-			PieceType max = player == PLAYER_RED ? PIECE_RED_KING : PIECE_BLACK_KING;
-			for (size_t i = 0; i < _hidden_pieces.length(); i++)
-			{
-				if (_hidden_pieces[i] >= min && _hidden_pieces[i] <= max)
-				{
-					return true;
-				}
-			}
-			return false;
+			HiddenPiece reserve = (player == PLAYER_RED ? HiddenPiece(68719476480) : HiddenPiece(18446744004990074880));
+			reserve &= _hidden_pieces;
+			return reserve.any();
 		}
 
 		//to next state by an action.
@@ -310,26 +290,6 @@ namespace chinese_dark_chess
 			data.update(*this);
 			return data;
 #endif
-		}
-
-		//return true if any undecided piece been changed.
-		inline bool CheckUndecidedPiece()
-		{
-			if (_pieces[PIECE_UNDECIDED].any())
-			{
-				GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, _hidden_pieces.length() == 0, "do not have any hidden piece.");
-				for (size_t i = 0; i < 32; i++)
-				{
-					if (_pieces[PIECE_UNDECIDED][i] == true)
-					{
-						_pieces[PIECE_UNDECIDED].reset(i);
-						PieceType piece = (PieceType)_hidden_pieces.draw_and_remove_value();
-						_pieces[piece].set(i);
-					}
-				}
-				return true;
-			}
-			return false;
 		}
 	};
 

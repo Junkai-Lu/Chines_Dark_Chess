@@ -149,6 +149,7 @@
     <ClInclude Include="include\mcts_new.hpp" />
     <ClInclude Include="include\minimax.hpp" />
     <ClInclude Include="include\visual_tree.h" />
+    <ClInclude Include="monte_carlo.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cdc_define.cpp" />
@@ -157,6 +158,7 @@
     <ClCompile Include="include\gameshell.cpp" />
     <ClCompile Include="include\json11.cpp" />
     <ClCompile Include="include\visual_tree.cpp" />
+    <ClCompile Include="monte_carlo.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
