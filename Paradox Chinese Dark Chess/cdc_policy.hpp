@@ -6,6 +6,13 @@ namespace chinese_dark_chess
 {
 	constexpr const bool g_CDC_POLICY_CHECK = true;
 
+	enum ActionGeneratorPolicy: uint8_t
+	{
+		DEFAULT_POLICY = 0,
+		GREEDY_POLICY = 1,
+		NO_FLIPPING_POLICY =2
+	};
+
 	//action generator.
 	class ActionGenerator
 	{
@@ -50,59 +57,44 @@ namespace chinese_dark_chess
 		void GenerateAllCaptureAction()
 		{
 			//get all capture action.
-			
-			//PAWN
-			BitBoard captureable_board = _state.piece_board(_enemy_pawn_id + 6);
-			if (_state.piece_board(_self_pawn_id).any())
-			{
-				for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
-				{
-					if (_state.piece_board(_self_pawn_id)[i] == true)
-					{
-						if (captureable_board[g_MOVEABLE_INDEX[i][0]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][0],_self_pawn_id }); }
-						if (captureable_board[g_MOVEABLE_INDEX[i][1]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][1],_self_pawn_id }); }
-						if (captureable_board[g_MOVEABLE_INDEX[i][2]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][2],_self_pawn_id }); }
-						if (captureable_board[g_MOVEABLE_INDEX[i][3]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][3],_self_pawn_id }); }
-					}
-				}
-			}
 
-			//CANNON ~ MINISTER
-			captureable_board = _state.piece_board(_enemy_pawn_id);
-			for (uint8_t i = 1; i < 6; i++)
+			//PAWN ~ MINISTER
+			BitBoard captureable_board = _state.piece_board(_enemy_pawn_id + 6);
+			for (uint8_t i = 0; i < 7; i++)
 			{
+				if (i == 6)
+				{
+					//King, remove all pawns.
+					captureable_board &= (~_state.piece_board(_enemy_pawn_id));//remove pawn
+				}
+
 				uint8_t piece = _self_pawn_id + i;
-				if (_state.piece_board(piece).any())
+				const BitBoard& equal_enemy_board = _state.piece_board(_enemy_pawn_id + i);
+				if (_state.piece_board(piece).any() && captureable_board.any())
 				{
 					for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
 					{
 						if (_state.piece_board(piece)[i] == true)
 						{
+							//add capture
 							if (captureable_board[g_MOVEABLE_INDEX[i][0]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][0],PieceType(piece) }); }
 							if (captureable_board[g_MOVEABLE_INDEX[i][1]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][1],PieceType(piece) }); }
 							if (captureable_board[g_MOVEABLE_INDEX[i][2]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][2],PieceType(piece) }); }
 							if (captureable_board[g_MOVEABLE_INDEX[i][3]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][3],PieceType(piece) }); }
+
+							//add both-capture
+							if (equal_enemy_board[g_MOVEABLE_INDEX[i][0]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][0],PIECE_EMPTY }); }
+							if (equal_enemy_board[g_MOVEABLE_INDEX[i][1]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][1],PIECE_EMPTY }); }
+							if (equal_enemy_board[g_MOVEABLE_INDEX[i][2]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][2],PIECE_EMPTY }); }
+							if (equal_enemy_board[g_MOVEABLE_INDEX[i][3]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][3],PIECE_EMPTY }); }
 						}
 					}
 				}
-				captureable_board |= _state.piece_board(piece);
-			}
-
-			//KING
-			captureable_board &= (~_state.piece_board(_self_pawn_id));//remove pawn
-			PieceType king = PieceType(_self_pawn_id + 6);
-			if (_state.piece_board(king).any())
-			{
-				for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
+				if (i == 0)
 				{
-					if (_state.piece_board(_self_pawn_id + 6)[i] == true)
-					{
-						if (captureable_board[g_MOVEABLE_INDEX[i][0]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][0],king }); }
-						if (captureable_board[g_MOVEABLE_INDEX[i][1]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][1],king }); }
-						if (captureable_board[g_MOVEABLE_INDEX[i][2]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][2],king }); }
-						if (captureable_board[g_MOVEABLE_INDEX[i][3]] == true) { AddAction({ CAPTURE_ACTION,i,g_MOVEABLE_INDEX[i][3],king }); }
-					}
+					captureable_board.reset();//clear all king.
 				}
+				captureable_board |= equal_enemy_board;
 			}
 		}
 
@@ -121,12 +113,31 @@ namespace chinese_dark_chess
 			}
 		}
 
-		void GenerateAllAction()
+		void GenerateActionsByPolicy(ActionGeneratorPolicy policy)
 		{
-			//存在未确定的棋子。
-			GenerateAllMoveAction();
-			GenerateAllCaptureAction();
-			GenerateAllFlippingAction();
+			switch (policy)
+			{
+			case chinese_dark_chess::DEFAULT_POLICY:
+				GenerateAllCaptureAction();
+				GenerateAllMoveAction();
+				GenerateAllFlippingAction();
+				break;
+			case chinese_dark_chess::GREEDY_POLICY:
+				GenerateAllCaptureAction();
+				if (size() == 0)
+				{
+					GenerateAllMoveAction();
+					GenerateAllFlippingAction();
+				}
+				break;
+			case chinese_dark_chess::NO_FLIPPING_POLICY:
+				GenerateAllCaptureAction();
+				GenerateAllMoveAction();
+				break;
+			default:
+				break;
+			}
+			
 		}
 
 		void GenerateAllFilpedResultAction()
@@ -157,11 +168,11 @@ namespace chinese_dark_chess
 	public:
 		
 		//default constructor
-		ActionGenerator(const State & state) :
+		ActionGenerator(const State & state, ActionGeneratorPolicy policy = DEFAULT_POLICY) :
 			_state(state),
 			_exist_undecided(state.exist_undecided_piece()),
-			_self_pawn_id(state.last_player() == PLAYER_RED ? PIECE_RED_PAWN : PIECE_BLACK_PAWN),
-			_enemy_pawn_id(state.last_player() == PLAYER_RED ? PIECE_BLACK_PAWN : PIECE_RED_PAWN),
+			_self_pawn_id(state.next_player() == PLAYER_RED ? PIECE_RED_PAWN : PIECE_BLACK_PAWN),
+			_enemy_pawn_id(state.next_player() == PLAYER_RED ? PIECE_BLACK_PAWN : PIECE_RED_PAWN),
 			_action_set(!state.exist_undecided_piece())
 		{
 			if (_exist_undecided)
@@ -170,7 +181,7 @@ namespace chinese_dark_chess
 			}
 			else
 			{
-				GenerateAllAction();
+				GenerateActionsByPolicy(policy);
 			}
 		}
 
@@ -188,26 +199,29 @@ namespace chinese_dark_chess
 		//print all actions.
 		void print() const
 		{
-			gadt::table::ConsoleTable table(4, _action_set.size() + 1);
+			gadt::table::ConsoleTable table(5, _action_set.size() + 1);
 			table.set_cell_in_row(0, { 
+				{ "index", gadt::console::GRAY},
 				{ "type", gadt::console::YELLOW },
 				{ "source", gadt::console::BLUE },
-				{ "dest", gadt::console::BLUE },
+				{ "dest", gadt::console::RED },
 				{ "piece", gadt::console::GREEN }
 			});
-			table.set_width({ 3,3,3,3 });
+			table.set_width({ 3,5,3,3,3 });
 			for (size_t i = 0; i < _action_set.size(); i++)
 			{
 				table.set_cell_in_row(i + 1, {
-					{ gadt::console::IntergerToString(_action_set.action(i).type)},
-					{ gadt::console::IntergerToString(_action_set.action(i).source) },
-					{ gadt::console::IntergerToString(_action_set.action(i).dest) },
-					{ gadt::console::IntergerToString(_action_set.action(i).piece) }
+					{ gadt::console::IntergerToString(i) },
+					{ print::ActionTypeToStr(_action_set.action(i).type)},
+					{ Location(_action_set.action(i).source).str() },
+					{ Location(_action_set.action(i).dest).str() },
+					{ print::PieceToStr(_action_set.action(i).piece),print::PieceToColor(_action_set.action(i).piece) }
 				});
 			}
-			table.print();
+			table.print(true, false);
 		}
 
+		//get size.
 		size_t size() const
 		{
 			return _action_set.size();

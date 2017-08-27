@@ -22,27 +22,29 @@ void ShellDefine()
 	root->AddChildPage("game", "the game");
 	root->AddFunction("move", "get move board", []() {
 		std::ofstream ofs("move.txt");
-		HiddenPiece hidden;
-		for (size_t i = PIECE_RED_PAWN; i < PIECE_EMPTY; i++)
+		ofs << "{" << std::endl;
+		for (size_t i = 0; i < 32; i++)
 		{
-			hidden.set(i, 1);
+			BitBoard board;
+			if (i > 7)
+			{
+				board.set(i - 8);
+			}
+			if (i < 24)
+			{
+				board.set(i + 8);
+			}
+			if (i % 8 != 0)
+			{
+				board.set(i - 1);
+			}
+			if (i % 8 != 7)
+			{
+				board.set(i + 1);
+			}
+			ofs << "	BitBoard(" << board.to_ullong() << ")," << std::endl;
 		}
-		hidden.set(PIECE_RED_PAWN, 5);
-		hidden.set(PIECE_BLACK_PAWN, 5);
-		ofs << "hidden  " << hidden.to_ullong() << std::endl;
-
-		HiddenPiece reserve_red;
-		for (size_t i = PIECE_RED_PAWN; i <= PIECE_RED_KING; i++)
-		{
-			reserve_red.set(i, 15);
-		}
-		ofs << "reserve_red  " << reserve_red.to_ullong() << std::endl;
-		HiddenPiece reserve_black;
-		for (size_t i = PIECE_BLACK_PAWN; i <= PIECE_BLACK_KING; i++)
-		{
-			reserve_black.set(i, 15);
-		}
-		ofs << "reserve_black  " << reserve_black.to_ullong() << std::endl;
+		ofs << "}";
 	});
 
 	game->AddFunction("show", "show state",[](State& state)->void{print::PrintState(state); });

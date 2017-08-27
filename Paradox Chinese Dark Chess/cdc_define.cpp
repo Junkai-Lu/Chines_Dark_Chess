@@ -42,6 +42,42 @@ namespace chinese_dark_chess
 		{ 30,63,23,63 }
 	};
 
+	BitBoard g_MOVEABLE_BITBOARD[g_CDC_MAX_LENGTH] =
+	{
+		BitBoard(258),
+		BitBoard(517),
+		BitBoard(1034),
+		BitBoard(2068),
+		BitBoard(4136),
+		BitBoard(8272),
+		BitBoard(16544),
+		BitBoard(32832),
+		BitBoard(66049),
+		BitBoard(132354),
+		BitBoard(264708),
+		BitBoard(529416),
+		BitBoard(1058832),
+		BitBoard(2117664),
+		BitBoard(4235328),
+		BitBoard(8405120),
+		BitBoard(16908544),
+		BitBoard(33882624),
+		BitBoard(67765248),
+		BitBoard(135530496),
+		BitBoard(271060992),
+		BitBoard(542121984),
+		BitBoard(1084243968),
+		BitBoard(2151710720),
+		BitBoard(33619968),
+		BitBoard(84017152),
+		BitBoard(168034304),
+		BitBoard(336068608),
+		BitBoard(672137216),
+		BitBoard(1344274432),
+		BitBoard(2688548864),
+		BitBoard(1082130432),
+	};
+
 	//update state data
 	void StateData::update(const State & state)
 	{
@@ -68,7 +104,6 @@ namespace chinese_dark_chess
 	//to next state.
 	void State::to_next(const Action & action)
 	{	
-		GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, action.type != FLIPPING_ACTION, "excute flipping act");
 		BitBoard clear(0xFFFFFFFFFFFFFFFF);
 		clear.reset(action.source);
 		clear.reset(action.dest);
@@ -82,6 +117,10 @@ namespace chinese_dark_chess
 		if (action.type == FLIPPED_RESULT_ACTION)
 		{
 			_hidden_pieces.decrease(action.piece);
+		}
+		else
+		{
+			exchange_player();
 		}
 #ifdef CDC_DEBUG_INFO
 		_debug_data.to_next(action);
@@ -122,64 +161,83 @@ namespace chinese_dark_chess
 	//print board.
 	namespace print
 	{
-		void PrintPiece(PieceType p)
+		std::string PieceToStr(PieceType piece)
 		{
-			switch (p)
+			switch (piece)
 			{
 			case PIECE_UNKNOWN:
-				console::Cprintf("●", console::DEFAULT);
-				break;
+				return "●";
 			case PIECE_RED_PAWN:
-				console::Cprintf("兵", console::RED);
-				break;
+				return "兵";
 			case PIECE_RED_CANNON:
-				console::Cprintf("炮", console::RED);
-				break;
+				return "炮";
 			case PIECE_RED_KNIGHT:
-				console::Cprintf("马", console::RED);
-				break;
+				return "马";
 			case PIECE_RED_ROOK:
-				console::Cprintf("车", console::RED);
-				break;
+				return "车";
 			case PIECE_RED_MINISTER:
-				console::Cprintf("相", console::RED);
-				break;
+				return "相";
 			case PIECE_RED_GUARD:
-				console::Cprintf("士", console::RED);
-				break;
+				return "士";
 			case PIECE_RED_KING:
-				console::Cprintf("帅", console::RED);
-				break;
+				return "帅";
 			case PIECE_BLACK_PAWN:
-				console::Cprintf("卒", console::BLUE);
-				break;
+				return "卒";
 			case PIECE_BLACK_CANNON:
-				console::Cprintf("炮", console::BLUE);
-				break;
+				return "炮";
 			case PIECE_BLACK_KNIGHT:
-				console::Cprintf("马", console::BLUE);
-				break;
+				return "马";
 			case PIECE_BLACK_ROOK:
-				console::Cprintf("车", console::BLUE);
-				break;
+				return "车";
 			case PIECE_BLACK_MINISTER:
-				console::Cprintf("象", console::BLUE);
-				break;
+				return "象";
 			case PIECE_BLACK_GUARD:
-				console::Cprintf("士", console::BLUE);
-				break;
+				return "士";
 			case PIECE_BLACK_KING:
-				console::Cprintf("将", console::BLUE);
-				break;
+				return "将";
 			case PIECE_UNDECIDED:
-				console::Cprintf("??", console::DEFAULT);
-				break;
+				return "??";
 			case PIECE_EMPTY:
-				console::Cprintf("  ", console::DEFAULT);
-				break;
+				return "  ";
 			default:
-				break;
+				return "  ";
 			}
+		}
+
+		gadt::console::ConsoleColor PieceToColor(PieceType piece)
+		{
+			if (piece >= PIECE_RED_PAWN && piece <= PIECE_RED_KING)
+			{
+				return gadt::console::RED;
+			}
+			if (piece >= PIECE_BLACK_PAWN && piece <= PIECE_BLACK_KING)
+			{
+				return gadt::console::BLUE;
+			}
+			return gadt::console::DEFAULT;
+		}
+
+		std::string ActionTypeToStr(ActionType type)
+		{
+			switch (type)
+			{
+			case chinese_dark_chess::MOVE_ACTION:
+				return "MOVE";
+			case chinese_dark_chess::CAPTURE_ACTION:
+				return "CAPTURE";
+			case chinese_dark_chess::FLIPPING_ACTION:
+				return "FLIPPING";
+			case chinese_dark_chess::FLIPPED_RESULT_ACTION:
+				return "FLIPPED";
+			default:
+				return "";
+			}
+			return "";
+		}
+
+		void PrintPiece(PieceType p)
+		{
+			console::Cprintf(PieceToStr(p), PieceToColor(p));
 		}
 
 		void PrintPlayer(PlayerIndex p)
@@ -190,7 +248,7 @@ namespace chinese_dark_chess
 				console::Cprintf("红方", console::RED);
 				break;
 			case PLAYER_BLACK:
-				console::Cprintf("黑方", console::RED);
+				console::Cprintf("黑方", console::BLUE);
 				break;
 			default:
 				break;
@@ -219,69 +277,25 @@ namespace chinese_dark_chess
 			default:
 				break;
 			}
+			std::cout << std::endl;
 		}
 
 		void PrintState(const State & s)
 		{
 			StateData data = s.data();
-			cout << endl << "    ";
-			for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+			gadt::table::ConsoleTable table(8, 4);
+			for (size_t y = 0; y < g_CDC_BOARD_HEIGHT; y++)
 			{
-				cout << char(x + 'a') << "   ";
-			}
-			
-			cout << endl << "  ┏";
-			for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++) 
-			{
-				if (x != g_CDC_BOARD_WIDTH - 1)
-					cout << "━┳";
-				else
-					cout << "━┓" << endl;
-			}
-			for (size_t y = 0;y < g_CDC_BOARD_HEIGHT; y++)
-			{
-				cout << y + 1 << " ┃";
 				for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
 				{
-					PrintPiece(data.piece(x, y));
-					cout << "┃";
-				}
-				std::cout << y + 1 << std::endl;
-
-				if (y != g_CDC_BOARD_HEIGHT - 1)
-				{
-					cout << "  ┣";
-					for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
-					{
-						if (x != g_CDC_BOARD_WIDTH - 1)
-						{
-							cout << "━╋";
-						}
-						else
-						{
-							cout << "━┫" << endl;
-						}
-					}
-				}
-				else
-				{
-					cout << "  ┗";
-					for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
-					{
-						if (x != g_CDC_BOARD_WIDTH - 1)
-							cout << "━┻";
-						else
-							cout << "━┛" << endl;
-					}
+					table.cell(x, y).str = PieceToStr(data.piece(x,y));
+					table.cell(x, y).color = PieceToColor(data.piece(x, y));
 				}
 			}
-
-			cout << "    ";
-			for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
-			{
-				cout << char(x + 'a') << "   ";
-			}
-			std::cout << std::endl << std::endl;
+			table.print();
+			std::cout << "next player :";
+			PrintPlayer(s.next_player());
+			std::cout << std::endl;
 		}
 
 	}

@@ -51,6 +51,9 @@
     <ClInclude Include="monte_carlo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="cdc_eval.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="include\gadtlib.cpp">
@@ -72,6 +75,9 @@
       <Filter>include</Filter>
     </ClCompile>
     <ClCompile Include="monte_carlo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="cdc_eval.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

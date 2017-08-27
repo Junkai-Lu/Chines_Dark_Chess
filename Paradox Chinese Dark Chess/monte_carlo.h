@@ -20,13 +20,12 @@ namespace chinese_dark_chess
 			{
 				Result result = state.get_result();
 				if (result != RESULT_UNFINISH)
-				{
 					return result;
-				}
-
-				//to next.
 				
+				ActionGenerator actions(state);
+				state.to_next(actions.random_action());
 			}
+			return Result();
 		}
 
 	public:
@@ -36,9 +35,22 @@ namespace chinese_dark_chess
 		{
 		}
 
-		const Action& result() const
+		const Action& DoMonteCarlo(size_t simulation_times) const
 		{
-			
+			const size_t single_action_simu_time = 1 + (simulation_times / _actions.size());
+			std::vector<double> values(_actions.size(), 0.0);
+			for (size_t i = 0; i < _actions.size(); i++)
+			{
+				for (size_t n = 0; n < single_action_simu_time; n++)
+				{
+
+				}
+			}
+		}
+
+		const Action& DoFlatMonteCarlo(size_t simulation_times) const
+		{
+
 		}
 	};
 }

@@ -20,13 +20,18 @@ namespace chinese_dark_chess
 	constexpr const size_t g_CDC_BOARD_HEIGHT = 4;
 	constexpr const size_t g_CDC_MAX_LENGTH = g_CDC_BOARD_WIDTH * g_CDC_BOARD_HEIGHT;
 
+	//bitboard of the pieces.
+	using BitBoard = gadt::bitboard::BitBoard64;
+	using HiddenPiece = gadt::bitboard::BitPoker;
+
 	extern size_t g_MOVEABLE_INDEX[g_CDC_MAX_LENGTH][4];
+	extern BitBoard g_MOVEABLE_BITBOARD[g_CDC_MAX_LENGTH];
 
 	//index of players.
-	enum PlayerIndex : uint8_t
+	enum PlayerIndex : int8_t
 	{
-		PLAYER_RED = 0,
-		PLAYER_BLACK = 1
+		PLAYER_RED = 1,
+		PLAYER_BLACK = -1
 	};
 	
 	//piece index, equal to PieceRank + PlayerIndex * 7
@@ -74,9 +79,7 @@ namespace chinese_dark_chess
 		RESULT_UNFINISH = 3
 	};
 
-	//bitboard of the pieces.
-	using BitBoard = gadt::bitboard::BitBoard64;
-	using HiddenPiece = gadt::bitboard::BitPoker;
+	
 	
 	//basic data struct of game state.
 	class State;
@@ -223,7 +226,7 @@ namespace chinese_dark_chess
 	private:
 		BitBoard	_pieces[g_CDC_BITBOARD_SIZE];	//pieces.
 		HiddenPiece	_hidden_pieces;					//pieces that still no be flipped.
-		PlayerIndex _last_player;					//index of last moved player.
+		PlayerIndex _next_player;					//index of last moved player.
 		size_t		_no_capture_count;				//the count of no capture, draw if the value more than 20.
 
 #ifdef CDC_DEBUG_INFO
@@ -233,15 +236,15 @@ namespace chinese_dark_chess
 	public:
 		template <typename T>const BitBoard& piece_board(T id) const { return _pieces[id]; }
 		const HiddenPiece& hidden_pieces() const { return _hidden_pieces; }
-		PlayerIndex last_player() const { return _last_player; }
+		PlayerIndex next_player() const { return _next_player; }
 		size_t no_capture_count() const { return _no_capture_count; }
 
 	public:
 
 		//default constructor, generate a new state.
 		State():
-			_hidden_pieces(1229783213125211392),
-			_last_player(PLAYER_RED),
+			_hidden_pieces(1306644573751223552),
+			_next_player(PLAYER_RED),
 			_no_capture_count(0)
 		{
 			_pieces[PIECE_UNKNOWN] = BitBoard(4294967295);
@@ -280,6 +283,12 @@ namespace chinese_dark_chess
 			return _pieces[PIECE_EMPTY];
 		}
 
+		//exchange player
+		inline void exchange_player()
+		{
+			_next_player = PlayerIndex(-1 * _next_player);
+		}
+
 		//get state data.
 		StateData data() const
 		{
@@ -296,6 +305,12 @@ namespace chinese_dark_chess
 	//print something
 	namespace print
 	{
+		std::string PieceToStr(PieceType piece);
+
+		gadt::console::ConsoleColor PieceToColor(PieceType piece);
+		
+		std::string ActionTypeToStr(ActionType type);
+
 		//print piece
 		void PrintPiece(PieceType p);
 
