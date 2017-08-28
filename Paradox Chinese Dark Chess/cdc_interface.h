@@ -1,6 +1,6 @@
 #include "cdc_define.h"
 #include "monte_carlo.h"
-#include "./include/json11.hpp"
+#include "../include/json11.hpp"
 
 #pragma once
 
@@ -20,5 +20,7 @@ namespace chinese_dark_chess
 		Json StateToJson(const State& state);
 
 		Json ActionToJson(const Action& action);
+
+		std::string ChineseDarkChessAI(std::string json_str);
 	}
 }

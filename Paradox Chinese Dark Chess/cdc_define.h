@@ -1,9 +1,9 @@
-#include "include\gadtlib.h"
-#include "include\bitboard.hpp"
-#include "include\gameshell.h"
-#include "include\mcts_new.hpp"
-#include "include\minimax.hpp"
-#include "include\visual_tree.h"
+#include "../include/gadtlib.h"
+#include "../include/bitboard.hpp"
+#include "../include/gameshell.h"
+#include "../include/mcts_new.hpp"
+#include "../include/minimax.hpp"
+#include "../include/visual_tree.h"
 
 #pragma once
 
@@ -254,6 +254,19 @@ namespace chinese_dark_chess
 		{
 			_pieces[PIECE_UNKNOWN] = BitBoard(4294967295);
 			_debug_data.update(*this);
+		}
+
+		State(const std::vector<std::vector<PieceType>>& data, HiddenPiece hidden, PlayerIndex next_player):
+			_hidden_pieces(hidden),
+			_next_player(next_player)
+		{
+			for (size_t y = 0; y < g_CDC_BOARD_HEIGHT; y++)
+			{
+				for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+				{
+					_pieces[data[x][y]].set((y* g_CDC_BOARD_WIDTH) + x);
+				}
+			}
 		}
 
 		//return true if any undecided piece exist.

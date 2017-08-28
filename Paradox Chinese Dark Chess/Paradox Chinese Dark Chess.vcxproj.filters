@@ -18,35 +18,11 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\bitboard.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\gadtlib.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\gadtstl.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\gameshell.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\mcts_new.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\minimax.hpp">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\visual_tree.h">
-      <Filter>include</Filter>
-    </ClInclude>
     <ClInclude Include="cdc_define.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="cdc_policy.hpp">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="include\json11.hpp">
-      <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="monte_carlo.h">
       <Filter>Header Files</Filter>
@@ -57,25 +33,40 @@
     <ClInclude Include="cdc_interface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\bitboard.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\gadtlib.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\gadtstl.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\gameshell.h">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\json11.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\mcts.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\mcts_new.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\minimax.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\visual_tree.h">
+      <Filter>include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="include\gadtlib.cpp">
-      <Filter>include</Filter>
-    </ClCompile>
-    <ClCompile Include="include\gameshell.cpp">
-      <Filter>include</Filter>
-    </ClCompile>
-    <ClCompile Include="include\visual_tree.cpp">
-      <Filter>include</Filter>
-    </ClCompile>
     <ClCompile Include="cdc_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="cdc_define.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="include\json11.cpp">
-      <Filter>include</Filter>
     </ClCompile>
     <ClCompile Include="monte_carlo.cpp">
       <Filter>Source Files</Filter>
@@ -85,6 +76,18 @@
     </ClCompile>
     <ClCompile Include="cdc_interface.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\gadtlib.cpp">
+      <Filter>include</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\gameshell.cpp">
+      <Filter>include</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\json11.cpp">
+      <Filter>include</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\visual_tree.cpp">
+      <Filter>include</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

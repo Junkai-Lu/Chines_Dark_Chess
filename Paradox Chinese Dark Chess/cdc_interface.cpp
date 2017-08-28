@@ -214,9 +214,27 @@ namespace chinese_dark_chess
 
 		Json StateToJson(const State & state)
 		{
-			StateData(state);
+			StateData data(state);
 			return Json();
 		}
+
+		std::string ChineseDarkChessAI(std::string json_str)
+		{
+			const std::string default_res = "null";
+			const size_t mc_times = 10000;
+			ErrorLog err;
+			std::string temp;
+			Json state_json = Json::parse(json_str, temp);
+			State state = JsonToState(state_json, err);
+			if (err.is_empty())
+			{
+				MonteCarlo mc(state);
+				Action act = mc.DoMonteCarlo(mc_times);
+				return ActionToJson(act).dump();
+			}
+			return default_res;
+		}
+
 	}
 }
 

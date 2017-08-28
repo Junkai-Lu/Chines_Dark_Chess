@@ -157,6 +157,26 @@ namespace chinese_dark_chess
 		_next_player = state.next_player();
 	}
 
+	//to state.
+	State StateData::to_state() const
+	{
+		HiddenPiece hidden;
+		for (auto p : _hidden_pieces)
+		{
+			hidden.push(p);
+		}
+		std::vector<std::vector<PieceType>> data(8, { PIECE_EMPTY,PIECE_EMPTY,PIECE_EMPTY,PIECE_EMPTY });
+		for (size_t y = 0; y < g_CDC_BOARD_HEIGHT; y++)
+		{
+			for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+			{
+				data[x][y] = _data[x][y];
+			}
+		}
+
+		return State(data, hidden, _next_player);
+	}
+
 	//to next state.
 	void State::to_next(const Action & action)
 	{	

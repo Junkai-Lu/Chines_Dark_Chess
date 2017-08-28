@@ -139,29 +139,30 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\bitboard.hpp" />
+    <ClInclude Include="..\include\gadtlib.h" />
+    <ClInclude Include="..\include\gadtstl.hpp" />
+    <ClInclude Include="..\include\gameshell.h" />
+    <ClInclude Include="..\include\json11.hpp" />
+    <ClInclude Include="..\include\mcts.hpp" />
+    <ClInclude Include="..\include\mcts_new.hpp" />
+    <ClInclude Include="..\include\minimax.hpp" />
+    <ClInclude Include="..\include\visual_tree.h" />
     <ClInclude Include="cdc_eval.h" />
     <ClInclude Include="cdc_interface.h" />
     <ClInclude Include="cdc_policy.hpp" />
     <ClInclude Include="cdc_define.h" />
-    <ClInclude Include="include\bitboard.hpp" />
-    <ClInclude Include="include\gadtlib.h" />
-    <ClInclude Include="include\gadtstl.hpp" />
-    <ClInclude Include="include\gameshell.h" />
-    <ClInclude Include="include\json11.hpp" />
-    <ClInclude Include="include\mcts_new.hpp" />
-    <ClInclude Include="include\minimax.hpp" />
-    <ClInclude Include="include\visual_tree.h" />
     <ClInclude Include="monte_carlo.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\include\gadtlib.cpp" />
+    <ClCompile Include="..\include\gameshell.cpp" />
+    <ClCompile Include="..\include\json11.cpp" />
+    <ClCompile Include="..\include\visual_tree.cpp" />
     <ClCompile Include="cdc_define.cpp" />
     <ClCompile Include="cdc_eval.cpp" />
     <ClCompile Include="cdc_interface.cpp" />
     <ClCompile Include="cdc_main.cpp" />
-    <ClCompile Include="include\gadtlib.cpp" />
-    <ClCompile Include="include\gameshell.cpp" />
-    <ClCompile Include="include\json11.cpp" />
-    <ClCompile Include="include\visual_tree.cpp" />
     <ClCompile Include="monte_carlo.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
