@@ -227,12 +227,12 @@ namespace chinese_dark_chess
 			return _action_set.size();
 		}
 
-		const Action& action(size_t index)
+		inline const Action& action(size_t index) const
 		{
 			return _action_set.action(index);
 		}
 
-		const Action& operator[](size_t index)
+		inline const Action& operator[](size_t index) const
 		{
 			return action(index);
 		}

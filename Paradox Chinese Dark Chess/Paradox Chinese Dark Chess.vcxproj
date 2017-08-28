@@ -140,6 +140,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="cdc_eval.h" />
+    <ClInclude Include="cdc_interface.h" />
     <ClInclude Include="cdc_policy.hpp" />
     <ClInclude Include="cdc_define.h" />
     <ClInclude Include="include\bitboard.hpp" />
@@ -155,6 +156,7 @@
   <ItemGroup>
     <ClCompile Include="cdc_define.cpp" />
     <ClCompile Include="cdc_eval.cpp" />
+    <ClCompile Include="cdc_interface.cpp" />
     <ClCompile Include="cdc_main.cpp" />
     <ClCompile Include="include\gadtlib.cpp" />
     <ClCompile Include="include\gameshell.cpp" />

@@ -78,6 +78,39 @@ namespace chinese_dark_chess
 		BitBoard(1082130432),
 	};
 
+	StateData::StateData() :
+		_hidden_pieces(
+	{
+		PIECE_RED_PAWN,PIECE_RED_PAWN,PIECE_RED_PAWN,PIECE_RED_PAWN,PIECE_RED_PAWN,
+		PIECE_RED_CANNON,PIECE_RED_CANNON,
+		PIECE_RED_KNIGHT,PIECE_RED_KNIGHT,
+		PIECE_RED_ROOK,PIECE_RED_ROOK,
+		PIECE_RED_MINISTER,PIECE_RED_MINISTER,
+		PIECE_RED_GUARD,PIECE_RED_GUARD,
+		PIECE_RED_KING,
+		PIECE_BLACK_PAWN,PIECE_BLACK_PAWN,PIECE_BLACK_PAWN,PIECE_BLACK_PAWN,PIECE_BLACK_PAWN,
+		PIECE_BLACK_CANNON,PIECE_BLACK_CANNON,
+		PIECE_BLACK_KNIGHT,PIECE_BLACK_KNIGHT,
+		PIECE_BLACK_ROOK,PIECE_BLACK_ROOK,
+		PIECE_BLACK_MINISTER,PIECE_BLACK_MINISTER,
+		PIECE_BLACK_GUARD,PIECE_BLACK_GUARD,
+		PIECE_BLACK_KING
+	})
+	{
+		for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+		{
+			for (size_t y = 0; y < g_CDC_BOARD_HEIGHT; y++)
+			{
+				_data[x][y] = PIECE_UNKNOWN;
+			}
+		}
+	}
+
+	StateData::StateData(const State & state)
+	{
+		update(state);
+	}
+
 	//update state data
 	void StateData::update(const State & state)
 	{
@@ -97,6 +130,14 @@ namespace chinese_dark_chess
 				{
 					_data[index % g_CDC_BOARD_WIDTH][index / g_CDC_BOARD_WIDTH] = static_cast<PieceType>(piece_id);
 				}
+			}
+		}
+		_hidden_pieces.clear();
+		for (size_t i = 0; i < state.hidden_pieces().upper_bound(); i++)
+		{
+			for (size_t n = 0; n < state.hidden_pieces()[i]; n++)
+			{
+				_hidden_pieces.push_back((PieceType)i);
 			}
 		}
 	}

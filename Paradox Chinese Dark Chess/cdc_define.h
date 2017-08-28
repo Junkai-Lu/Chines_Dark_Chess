@@ -71,12 +71,12 @@ namespace chinese_dark_chess
 	};
 
 	//the result of a state.
-	enum Result:uint8_t
+	enum Result:int8_t
 	{
-		RESULT_RED_WIN = 0,
-		RESUKT_BLACK_WIN = 1,
-		RESULT_DRAW = 2,
-		RESULT_UNFINISH = 3
+		RESULT_RED_WIN = 1,
+		RESULT_DRAW = 0,
+		RESUKT_BLACK_WIN = -1,
+		RESULT_UNFINISH = 2
 	};
 
 	
@@ -149,8 +149,14 @@ namespace chinese_dark_chess
 	{
 	private:
 		PieceType _data[g_CDC_BOARD_WIDTH][g_CDC_BOARD_HEIGHT];
+		std::vector<PieceType> _hidden_pieces;
 
 	public:
+
+		StateData();
+
+		StateData(const State& state);
+
 		//get piece by location
 		PieceType piece(Location loc)
 		{
