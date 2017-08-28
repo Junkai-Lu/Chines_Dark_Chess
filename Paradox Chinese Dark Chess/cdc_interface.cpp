@@ -17,6 +17,12 @@ namespace chinese_dark_chess
 {
 	namespace  json_interface
 	{
+		const char*	g_AI_VERSION = "7.5.01";		//版本号
+		const char*	g_LOG_SUFFIX = ".log";			//文件后缀名
+		const bool	g_PRINT_RESPOND = false;		//打印结果
+		const bool	g_ENABLE_REQUEST_LOG = true;	//开启请求日志
+		const bool  g_ENABLE_ERROR_LOG = true;		//开启错误日志
+
 		PieceType JsonToPiece(Json json, ErrorLog & err)
 		{
 			if (json.is_string())
@@ -218,21 +224,56 @@ namespace chinese_dark_chess
 			return Json();
 		}
 
-		std::string ChineseDarkChessAI(std::string json_str)
+		std::string ChineseDarkChessAI(std::string json_str, std::string log_dir, std::string err_dir)
 		{
-			const std::string default_res = "null";
-			const size_t mc_times = 10000;
 			ErrorLog err;
-			std::string temp;
-			Json state_json = Json::parse(json_str, temp);
-			State state = JsonToState(state_json, err);
-			if (err.is_empty())
+			gadt::timer::TimePoint tm;
+
+			const std::string default_respond = "null";
+			const size_t mc_times = 10000;
+
+			std::string parse_err;
+			Json request_json = Json::parse(json_str, parse_err);
+			
+			State state = JsonToState(request_json, err);
+
+			//return null if exist any error.
+			if (!err.is_empty())
 			{
-				MonteCarlo mc(state);
-				Action act = mc.DoMonteCarlo(mc_times);
-				return ActionToJson(act).dump();
+				std::ofstream err_log(err_dir + "error_" + gadt::timer::TimeString("%m-%d-%H") + g_LOG_SUFFIX, std::ios::app);
+				if (g_PRINT_RESPOND)
+				{
+					std::cout << "FzmError: Request Failed! " << std::endl;
+				}
+				if (g_ENABLE_ERROR_LOG)
+				{
+					err_log << "Error = {" << std::endl;
+					err_log << "  request = " << json_str << std::endl;
+					err_log << "  error = " << err.output() << std::endl;
+					err_log << "  time = " << gadt::timer::TimeString() << std::endl << "}" << std::endl << std::endl;
+				}
+				return default_respond;
 			}
-			return default_res;
+
+			MonteCarlo mc(state);
+			Action act = mc.DoMonteCarlo(mc_times);
+			std::string respond_str = ActionToJson(act).dump();
+
+			//write logs.
+			if (g_PRINT_RESPOND)
+			{
+				std::cout << respond_str << std::endl;
+			}
+
+			if (g_ENABLE_REQUEST_LOG)
+			{
+				std::ofstream log(log_dir + "Req_" + gadt::timer::TimeString("%m-%d-%H") + g_LOG_SUFFIX, std::ios::app);
+				log << "{" << std::endl;
+				log << "  \"request\":" << json_str << "," << std::endl;
+				log << "  \"respond\":" << respond_str << "," << std::endl;
+				log << "  \"time\":\"" << gadt::timer::TimeString() << "\"" << std::endl << "}," << std::endl << std::endl;
+			}
+			return respond_str;
 		}
 
 	}

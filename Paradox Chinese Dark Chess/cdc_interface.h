@@ -21,6 +21,6 @@ namespace chinese_dark_chess
 
 		Json ActionToJson(const Action& action);
 
-		std::string ChineseDarkChessAI(std::string json_str);
+		std::string ChineseDarkChessAI(std::string json_str, std::string log_dir, std::string err_dir);
 	}
 }
