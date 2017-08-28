@@ -4,7 +4,21 @@
 
 #pragma once
 
-namespace json_interface
-{
+using json11::Json;
+using gadt::log::ErrorLog;
 
+namespace chinese_dark_chess
+{
+	namespace json_interface
+	{
+		PieceType JsonToPiece(Json json, ErrorLog& err);
+
+		PlayerIndex JsonToPlayer(Json json, ErrorLog& err);
+
+		State JsonToState(Json json, ErrorLog& err);
+
+		Json StateToJson(const State& state);
+
+		Json ActionToJson(const Action& action);
+	}
 }

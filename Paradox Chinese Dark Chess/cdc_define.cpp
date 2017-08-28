@@ -95,7 +95,8 @@ namespace chinese_dark_chess
 		PIECE_BLACK_MINISTER,PIECE_BLACK_MINISTER,
 		PIECE_BLACK_GUARD,PIECE_BLACK_GUARD,
 		PIECE_BLACK_KING
-	})
+	}),
+		_next_player(PLAYER_RED)
 	{
 		for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
 		{
@@ -109,6 +110,19 @@ namespace chinese_dark_chess
 	StateData::StateData(const State & state)
 	{
 		update(state);
+	}
+
+	StateData::StateData(std::vector<std::vector<PieceType>> data, std::vector<PieceType> hidden_pieces, PlayerIndex next_player):
+		_hidden_pieces(hidden_pieces),
+		_next_player(next_player)
+	{
+		for (size_t y = 0; y < g_CDC_BOARD_HEIGHT; y++)
+		{
+			for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+			{
+				_data[x][y] = (data[x])[y];
+			}
+		}
 	}
 
 	//update state data
@@ -140,6 +154,7 @@ namespace chinese_dark_chess
 				_hidden_pieces.push_back((PieceType)i);
 			}
 		}
+		_next_player = state.next_player();
 	}
 
 	//to next state.
@@ -164,7 +179,7 @@ namespace chinese_dark_chess
 			exchange_player();
 		}
 #ifdef CDC_DEBUG_INFO
-		_debug_data.to_next(action);
+		_debug_data.update(*this);
 #endif
 	}
 

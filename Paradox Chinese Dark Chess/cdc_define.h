@@ -150,12 +150,15 @@ namespace chinese_dark_chess
 	private:
 		PieceType _data[g_CDC_BOARD_WIDTH][g_CDC_BOARD_HEIGHT];
 		std::vector<PieceType> _hidden_pieces;
+		PlayerIndex _next_player;
 
 	public:
 
 		StateData();
 
 		StateData(const State& state);
+
+		StateData(std::vector<std::vector<PieceType>> data, std::vector<PieceType> hidden_pieces, PlayerIndex next_player);
 
 		//get piece by location
 		PieceType piece(Location loc)
@@ -169,15 +172,11 @@ namespace chinese_dark_chess
 			return _data[x][y];
 		}
 
-		//to next by action data.
-		void to_next(const Action& action)
-		{
-			_data[action.source % 8][action.source /8] = PIECE_EMPTY;
-			_data[action.dest % 8][action.dest / 8] = action.piece;
-		}
-
 		//updata data by State.
 		void update(const State& state);
+
+		//translate to state.
+		State to_state() const;
 	};
 
 	//action set
