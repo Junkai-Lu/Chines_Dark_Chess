@@ -22,8 +22,7 @@ namespace chinese_dark_chess
 		const PieceType _self_pawn_id;
 		const PieceType _enemy_pawn_id;
 		ActionSet _action_set;
-		
-
+	
 	private:
 		//添加动作
 		inline void AddAction(Action&& action)
@@ -37,17 +36,67 @@ namespace chinese_dark_chess
 			//get all allowed move
 			for (uint8_t p = 0; p < 7; p++)
 			{
-				uint8_t piece = (uint8_t)_self_pawn_id + p;
-				if (_state.piece_board(piece).any())
+				if (p != 1)//skip cannon.
 				{
-					for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
+					uint8_t piece = (uint8_t)_self_pawn_id + p;
+					if (_state.piece_board(piece).any())
 					{
-						if (_state.piece_board(piece)[i] == true)
+						for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
 						{
-							if (empty_board[g_MOVEABLE_INDEX[i][0]] == true) { AddAction({ MOVE_ACTION,i,g_MOVEABLE_INDEX[i][0],PieceType(piece) }); }
-							if (empty_board[g_MOVEABLE_INDEX[i][1]] == true) { AddAction({ MOVE_ACTION,i,g_MOVEABLE_INDEX[i][1],PieceType(piece) }); }
-							if (empty_board[g_MOVEABLE_INDEX[i][2]] == true) { AddAction({ MOVE_ACTION,i,g_MOVEABLE_INDEX[i][2],PieceType(piece) }); }
-							if (empty_board[g_MOVEABLE_INDEX[i][3]] == true) { AddAction({ MOVE_ACTION,i,g_MOVEABLE_INDEX[i][3],PieceType(piece) }); }
+							if (_state.piece_board(piece)[i] == true)
+							{
+								if (empty_board[g_MOVEABLE_INDEX[i][0]] == true) { AddAction({ MOVE_ACTION,i,g_MOVEABLE_INDEX[i][0],PieceType(piece) }); }
+								if (empty_board[g_MOVEABLE_INDEX[i][1]] == true) { AddAction({ MOVE_ACTION,i,g_MOVEABLE_INDEX[i][1],PieceType(piece) }); }
+								if (empty_board[g_MOVEABLE_INDEX[i][2]] == true) { AddAction({ MOVE_ACTION,i,g_MOVEABLE_INDEX[i][2],PieceType(piece) }); }
+								if (empty_board[g_MOVEABLE_INDEX[i][3]] == true) { AddAction({ MOVE_ACTION,i,g_MOVEABLE_INDEX[i][3],PieceType(piece) }); }
+							}
+						}
+					}
+				}
+			}
+		}
+
+		void GenerateAllCannonFlyAction()
+		{
+			//cannon fly.
+			const BitBoard& cannon_board = _state.piece_board(_self_pawn_id + 1);
+			const BitBoard exist_piece_board = _state.get_exist_piece_board();
+			BitBoard capturable_board = _state.piece_board(PIECE_UNKNOWN);
+			for (size_t i = 0; i < 7; i++)
+			{
+				capturable_board |= _state.piece_board(_enemy_pawn_id + i);
+			}
+
+			if (cannon_board.any())
+			{
+				for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
+				{
+					if (cannon_board[i] == true)
+					{
+						constexpr int dir[4] = { 1,-1,8,-8 };
+						for (size_t n = 0; n < 4; n++)
+						{
+							int loc = (int)i;
+							bool found_first = false;
+							for (;;)
+							{
+								loc += dir[n];//get new location.
+								if (loc < 0 || loc >= 32)
+									break;
+								if (exist_piece_board[loc] == true)
+								{
+									if (!found_first)
+										found_first = true;
+									else
+									{
+										if (capturable_board[loc] == true)
+										{
+											AddAction({ CAPTURE_ACTION,i,loc,PieceType(_self_pawn_id + 1) });
+										}
+										break;
+									}
+								}
+							}
 						}
 					}
 				}
@@ -62,15 +111,20 @@ namespace chinese_dark_chess
 			BitBoard captureable_board = _state.piece_board(_enemy_pawn_id + 6);
 			for (uint8_t i = 0; i < 7; i++)
 			{
+				uint8_t piece = _self_pawn_id + i;
+				const BitBoard& equal_enemy_board = _state.piece_board(_enemy_pawn_id + i);
+
+				//remove all PAWNS if it is king.
 				if (i == 6)
 				{
-					//King, remove all pawns.
 					captureable_board &= (~_state.piece_board(_enemy_pawn_id));//remove pawn
 				}
 
-				uint8_t piece = _self_pawn_id + i;
-				const BitBoard& equal_enemy_board = _state.piece_board(_enemy_pawn_id + i);
-				if (_state.piece_board(piece).any() && captureable_board.any())
+				//add equal pieces.
+				captureable_board |= equal_enemy_board; //add equal pieces.
+
+				//skip CANNON.
+				if (_state.piece_board(piece).any() && captureable_board.any() && i != 1)
 				{
 					for (size_t i = 0; i < g_CDC_MAX_LENGTH; i++)
 					{
@@ -90,12 +144,15 @@ namespace chinese_dark_chess
 						}
 					}
 				}
+
+				//clear all KING if it is PAWN.
 				if (i == 0)
 				{
-					captureable_board.reset();//clear all king.
+					captureable_board = equal_enemy_board;//clear all kings.
 				}
-				captureable_board |= equal_enemy_board;
 			}
+
+			GenerateAllCannonFlyAction();
 		}
 
 		void GenerateAllFlippingAction()
@@ -140,7 +197,7 @@ namespace chinese_dark_chess
 			
 		}
 
-		void GenerateAllFilpedResultAction()
+		void AllFlipedResultAction()
 		{
 			//find piece location.
 			size_t loc = 100;
@@ -165,6 +222,18 @@ namespace chinese_dark_chess
 			}
 		}
 
+		void AllRemoveHiddenAction()
+		{
+			const HiddenPiece& hidden = _state.hidden_pieces();
+			for (size_t i = 0; i < hidden.upper_bound(); i++)
+			{
+				if (hidden[i] > 0)
+				{
+					_action_set.push(Action(REMOVE_HIDDEN_ACTION, 63, 63, PieceType(i)), hidden[i]);
+				}
+			}
+		}
+
 	public:
 		
 		//default constructor
@@ -177,7 +246,11 @@ namespace chinese_dark_chess
 		{
 			if (_exist_undecided)
 			{
-				GenerateAllFilpedResultAction();
+				AllFlipedResultAction();
+			}
+			else if (state.remove_hidden_flag())
+			{
+				AllRemoveHiddenAction();
 			}
 			else
 			{
@@ -188,11 +261,6 @@ namespace chinese_dark_chess
 		//get random action
 		const Action& random_action() const
 		{
-			//如果存在未判定的棋子
-			if (_exist_undecided)
-			{
-
-			}
 			return _action_set.random_action();
 		}
 		

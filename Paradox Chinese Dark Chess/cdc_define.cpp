@@ -180,7 +180,19 @@ namespace chinese_dark_chess
 	//to next state.
 	void State::to_next(const Action & action)
 	{	
-		BitBoard clear(0xFFFFFFFFFFFFFFFF);
+		if (action.type == CAPTURE_ACTION && _pieces[PIECE_UNKNOWN].get(action.dest) == true)
+		{
+			_remove_hidden_flag = true;
+		}
+
+		if (action.type == REMOVE_HIDDEN_ACTION)
+		{
+			reset_remove_hidden_flag();
+			_hidden_pieces.decrease(action.piece);
+			return;
+		}
+
+		BitBoard clear(0xFFFFFFFFFFFFFFFFULL);
 		clear.reset(action.source);
 		clear.reset(action.dest);
 		for (size_t i = PIECE_UNKNOWN; i < PIECE_EMPTY; i++)

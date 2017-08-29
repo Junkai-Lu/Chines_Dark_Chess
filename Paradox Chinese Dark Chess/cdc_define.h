@@ -67,7 +67,8 @@ namespace chinese_dark_chess
 		MOVE_ACTION = 0,			//move without caputure
 		CAPTURE_ACTION = 1,			//capture a piece
 		FLIPPING_ACTION = 2,		//flip a piece but not decide what piece it is
-		FLIPPED_RESULT_ACTION = 3	//flip a piece and decide what it is.
+		FLIPPED_RESULT_ACTION = 3,	//flip a piece and decide what it is.
+		REMOVE_HIDDEN_ACTION = 4
 	};
 
 	//the result of a state.
@@ -244,6 +245,7 @@ namespace chinese_dark_chess
 		HiddenPiece	_hidden_pieces;					//pieces that still no be flipped.
 		PlayerIndex _next_player;					//index of last moved player.
 		size_t		_no_capture_count;				//the count of no capture, draw if the value more than 20.
+		bool		_remove_hidden_flag;			//if true, in the next one hidden piece must be removed.
 
 #ifdef CDC_DEBUG_INFO
 		StateData	_debug_data;					//debug data
@@ -323,6 +325,16 @@ namespace chinese_dark_chess
 			_next_player = PlayerIndex(-1 * _next_player);
 		}
 
+		inline bool remove_hidden_flag() const
+		{
+			return _remove_hidden_flag;
+		}
+
+		inline void reset_remove_hidden_flag()
+		{
+			_remove_hidden_flag = false;
+		}
+
 		//get state data.
 		StateData data() const
 		{
@@ -334,11 +346,6 @@ namespace chinese_dark_chess
 			return data;
 #endif
 		}
-
-#ifdef CDC_DEBUG_INFO
-		//debug data
-		StateData& debug_data() { return _debug_data; }
-#endif
 	};
 
 	//print something
