@@ -369,6 +369,7 @@ namespace chinese_dark_chess
 				}
 			}
 			table.print();
+			std::cout << "hidden_piece:" << s.hidden_pieces().to_string() << std::endl;
 			std::cout << "next player :";
 			PrintPlayer(s.next_player());
 			std::cout << std::endl;

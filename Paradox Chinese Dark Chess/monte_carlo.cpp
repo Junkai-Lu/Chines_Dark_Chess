@@ -19,7 +19,7 @@ namespace chinese_dark_chess
 
 	const Action & MonteCarlo::DoMonteCarlo(size_t simulation_times) const
 	{
-		constexpr bool enable_log = false;
+		//constexpr bool enable_log = false;
 
 		//return the first one if there is only one available action.
 		if (_actions.size() == 1)
@@ -37,7 +37,7 @@ namespace chinese_dark_chess
 			for (size_t n = 0; n < single_action_simu_time; n++)
 			{
 				Result result = Simulation(new_state);
-				if (result == _state.next_player())
+				if ((int8_t)result == (int8_t)_state.next_player())
 					count++;
 			}
 			if (count > best_count)

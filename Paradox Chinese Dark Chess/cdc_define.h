@@ -100,7 +100,7 @@ namespace chinese_dark_chess
 		template<typename T, typename std::enable_if<std::is_integral<T>::value, int>::type = 0>
 		Location(T index):x(index % g_CDC_BOARD_WIDTH),y(index / g_CDC_BOARD_WIDTH)
 		{
-			GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, index >= g_CDC_MAX_LENGTH, "out of index");
+			GADT_CHECK_WARNING(g_CDC_DEFINE_CHECK, (size_t)index >= g_CDC_MAX_LENGTH, "out of index");
 		}
 
 		std::string str() const
@@ -177,6 +177,16 @@ namespace chinese_dark_chess
 
 		//translate to state.
 		State to_state() const;
+
+		const std::vector<PieceType>& hidden_pieces() const
+		{
+			return _hidden_pieces;
+		}
+
+		PlayerIndex next_player() const
+		{
+			return _next_player;
+		}
 	};
 
 	//action set
@@ -190,7 +200,8 @@ namespace chinese_dark_chess
 		
 	public:
 		ActionSet(bool all_weight_equal = true):
-			_action_pool(g_CDC_MAX_ACTION_COUNT)
+			_action_pool(g_CDC_MAX_ACTION_COUNT),
+			_all_weight_equal(all_weight_equal)
 		{
 		}
 
@@ -253,7 +264,9 @@ namespace chinese_dark_chess
 			_no_capture_count(0)
 		{
 			_pieces[PIECE_UNKNOWN] = BitBoard(4294967295);
+#ifdef CDC_DEBUG_INFO
 			_debug_data.update(*this);
+#endif
 		}
 
 		State(const std::vector<std::vector<PieceType>>& data, HiddenPiece hidden, PlayerIndex next_player):
@@ -267,6 +280,9 @@ namespace chinese_dark_chess
 					_pieces[data[x][y]].set((y* g_CDC_BOARD_WIDTH) + x);
 				}
 			}
+#ifdef CDC_DEBUG_INFO
+			_debug_data.update(*this);
+#endif
 		}
 
 		//return true if any undecided piece exist.
@@ -278,7 +294,7 @@ namespace chinese_dark_chess
 		//return true if the player have hidden pieces.
 		inline bool exist_hidden_piece(PlayerIndex player) const
 		{
-			HiddenPiece reserve = (player == PLAYER_RED ? HiddenPiece(68719476480) : HiddenPiece(18446744004990074880));
+			HiddenPiece reserve = (player == PLAYER_RED ? HiddenPiece(0xFFFFFFF00) : HiddenPiece(0xFFFFFFF000000000ULL));
 			reserve &= _hidden_pieces;
 			return reserve.any();
 		}
@@ -318,6 +334,11 @@ namespace chinese_dark_chess
 			return data;
 #endif
 		}
+
+#ifdef CDC_DEBUG_INFO
+		//debug data
+		StateData& debug_data() { return _debug_data; }
+#endif
 	};
 
 	//print something

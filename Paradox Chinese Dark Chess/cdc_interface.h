@@ -15,11 +15,19 @@ namespace chinese_dark_chess
 
 		PlayerIndex JsonToPlayer(Json json, ErrorLog& err);
 
+		Location JsonToLocation(Json json, ErrorLog& err);
+
 		State JsonToState(Json json, ErrorLog& err);
 
-		Json StateToJson(const State& state);
+		Json LocationToJson(Location loc);
+
+		Json PlayerToJson(PlayerIndex p);
+
+		Json PieceToJson(PieceType p);
 
 		Json ActionToJson(const Action& action);
+
+		Json StateToJson(const State& state);
 
 		std::string ChineseDarkChessAI(std::string json_str, std::string log_dir, std::string err_dir);
 	}

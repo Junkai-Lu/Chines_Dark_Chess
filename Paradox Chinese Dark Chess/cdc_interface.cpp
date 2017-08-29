@@ -23,6 +23,17 @@ namespace chinese_dark_chess
 		const bool	g_ENABLE_REQUEST_LOG = true;	//开启请求日志
 		const bool  g_ENABLE_ERROR_LOG = true;		//开启错误日志
 
+		constexpr const char* g_STATE_STR = "state";
+		constexpr const char* g_BOARD_STR = "board";
+		constexpr const char* g_NEXT_PLAYER_STR = "next_player";
+		constexpr const char* g_HIDDEN_PIECE_STR = "hidden_pieces";
+		constexpr const char* g_ACTION_SOURCE_STR = "from";
+		constexpr const char* g_ACTION_DEST_STR = "dest";
+		constexpr const char* g_ACTION_PIECE_STR = "piece";
+		constexpr const char* g_RED_PLAYER_STR = "RED";
+		constexpr const char* g_BLACK_PLAYER_STR = "BLACK";
+
+
 		PieceType JsonToPiece(Json json, ErrorLog & err)
 		{
 			if (json.is_string())
@@ -75,11 +86,11 @@ namespace chinese_dark_chess
 			if (json.is_string())
 			{
 				std::string str = json.string_value();
-				if (str == "RED")
+				if (str == g_RED_PLAYER_STR)
 				{
 					return PLAYER_RED;
 				}
-				if (str == "BLACK")
+				if (str == g_BLACK_PLAYER_STR)
 				{
 					return PLAYER_BLACK;
 				}
@@ -111,7 +122,7 @@ namespace chinese_dark_chess
 			if (json.is_object())
 			{
 				std::vector<std::vector<PieceType>> data(8, { PIECE_EMPTY,PIECE_EMPTY,PIECE_EMPTY,PIECE_EMPTY });
-				const Json& data_json = json["data"];
+				const Json& data_json = json[g_BOARD_STR];
 				if (data_json.is_array())
 				{
 					if (data_json.array_items().size() == g_CDC_BOARD_WIDTH)
@@ -138,7 +149,7 @@ namespace chinese_dark_chess
 				else { err.add("json is not array."); }
 
 				std::vector<PieceType> hidden_pieces;
-				const Json& hidden_pieces_json = json["hidden_pieces"];
+				const Json& hidden_pieces_json = json[g_HIDDEN_PIECE_STR];
 				if (hidden_pieces_json.is_array())
 				{
 					for (auto j : hidden_pieces_json.array_items())
@@ -147,7 +158,7 @@ namespace chinese_dark_chess
 					}
 				}
 
-				PlayerIndex next_player = JsonToPlayer(json["next_player"], err);
+				PlayerIndex next_player = JsonToPlayer(json[g_NEXT_PLAYER_STR], err);
 				return StateData(data, hidden_pieces, next_player).to_state();
 			}
 			else { err.add("JsonToState, json is not object"); }
@@ -163,6 +174,20 @@ namespace chinese_dark_chess
 			return arr;
 		}
 
+		Json PlayerToJson(PlayerIndex p)
+		{
+			switch (p)
+			{
+			case chinese_dark_chess::PLAYER_RED:
+				return Json(g_RED_PLAYER_STR);
+			case chinese_dark_chess::PLAYER_BLACK:
+				return Json(g_BLACK_PLAYER_STR);
+			default:
+				break;
+			}
+			return Json("");
+		}
+
 		Json PieceToJson(PieceType p)
 		{
 			switch (p)
@@ -170,10 +195,9 @@ namespace chinese_dark_chess
 			case PIECE_UNKNOWN:
 				return Json("?");
 			case PIECE_UNDECIDED:
-				GADT_CHECK_WARNING(true, true, "find undecied state");
-				return Json(" ");
+				return Json("?");
 			case PIECE_RED_PAWN:
-				return Json("R");
+				return Json("P");
 			case PIECE_RED_CANNON:
 				return Json("C");
 			case PIECE_RED_KNIGHT:
@@ -211,9 +235,9 @@ namespace chinese_dark_chess
 		Json ActionToJson(const Action & action)
 		{
 			Json::object obj = {
-				{ "from", LocationToJson(Location(action.source)) },
-				{ "to", LocationToJson(Location(action.dest)) },
-				{ "piece", PieceToJson(action.piece) }
+				{ g_ACTION_SOURCE_STR, LocationToJson(Location(action.source)) },
+				{ g_ACTION_DEST_STR, LocationToJson(Location(action.dest)) },
+				{ g_ACTION_PIECE_STR, PieceToJson(action.piece) }
 			};
 			return obj;
 		}
@@ -221,7 +245,31 @@ namespace chinese_dark_chess
 		Json StateToJson(const State & state)
 		{
 			StateData data(state);
-			return Json();
+			Json::array board;
+			for (size_t x = 0; x < g_CDC_BOARD_WIDTH; x++)
+			{
+				Json::array column_json;
+				for (size_t y = 0; y < g_CDC_BOARD_HEIGHT; y++)
+				{
+					column_json.push_back(PieceToJson(data.piece(x, y)));
+				}
+				board.push_back(column_json);
+			}
+
+			Json::array hidden_json;
+			for (auto piece : data.hidden_pieces())
+			{
+				hidden_json.push_back(PieceToJson(piece));
+			}
+
+			Json player = PlayerToJson(data.next_player());
+
+			Json::object obj = {
+				{ g_BOARD_STR, board },
+				{ g_HIDDEN_PIECE_STR, hidden_json },
+				{ g_NEXT_PLAYER_STR, player }
+			};
+			return obj;
 		}
 
 		std::string ChineseDarkChessAI(std::string json_str, std::string log_dir, std::string err_dir)
@@ -275,7 +323,6 @@ namespace chinese_dark_chess
 			}
 			return respond_str;
 		}
-
 	}
 }
 

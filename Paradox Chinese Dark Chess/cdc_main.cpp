@@ -1,5 +1,6 @@
 #include "cdc_define.h"
 #include "cdc_policy.hpp"
+#include "cdc_interface.h"
 
 using namespace gadt;
 using namespace chinese_dark_chess;
@@ -70,6 +71,16 @@ void ShellDefine()
 		print::PrintAction(action[i]);
 		state.to_next(action[i]);
 		print::PrintState(state);
+	});
+	game->AddFunction("json", "translate to json then be back", [](State& state) {
+		gadt::log::ErrorLog err;
+		auto json = json_interface::StateToJson(state);
+		State temp = json_interface::JsonToState(json, err);
+		print::PrintState(state);
+		print::PrintState(temp);
+		std::cout << json.dump() << std::endl;
+		std::string action_json = json_interface::ChineseDarkChessAI(json.dump(), "./", "./");
+		std::cout << action_json << std::endl;
 	});
 
 	cdc.StartFromPage("root");
